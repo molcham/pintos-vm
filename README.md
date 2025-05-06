@@ -5,6 +5,7 @@
 [**참고사항**] 
 * pintos 도커 환경은 `64비트 기반 X86-64` 기반의 `ubuntu:18.04` 버전을 사용합니다. (kaist-pintos는 오리지널 pintos와 달리 64비트 환경을 지원합니다)
 * pintos 도커 환경은 kaist-pintos에서 추천하는 qemu 에뮬레이터를 설치하고 사용합니다. 
+* pintos 도커 환경은 9주차부터 13주차까지 같은 환경을 사용합니다. 이 기간동안 별도의 개발 환경을 제공하지 않습니다.
 * 기존 도커 환경과 달리 `vscode`와 통합된 디버깅 환경(F5로 시작하는)을 제공하지 않습니다. 디버깅이 필요한 경우 `gdb`를 사용해야 합니다. 
 * vscode에서 터미널을 실행하면 자동으로 `source /workspaces/pintos_lab_docker/pintos-kaist/activate`를 실행하게 되어 있습니다.
 
