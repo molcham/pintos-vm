@@ -90,7 +90,7 @@ struct thread {
 	tid_t tid;                          /* Thread identifier. */
 	enum thread_status status;          /* Thread state. */
 	char name[16];                      /* Name (for debugging purposes). */
-	int priority;                       /* Priority. */
+	int priority;                       /* Priority. */	
 
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
@@ -107,7 +107,11 @@ struct thread {
 	/* Owned by thread.c. */
 	struct intr_frame tf;               /* Information for switching */
 	unsigned magic;                     /* Detects stack overflow. */
+	int64_t wakeup_tick;                /* 깨어나야 할 시점(tick) */ 
 };
+
+/* 잠든 스레드를 저장할 리스트 구조체 */
+extern struct list sleep_list;
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -142,5 +146,8 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 void do_iret (struct intr_frame *tf);
+
+/* 특정 스레드를 Sleep List에 순서대로 삽입하는 함수 */ 
+void insert_to_sleeplist_in_order(struct list *sleeplist, struct thread *cur); 
 
 #endif /* threads/thread.h */

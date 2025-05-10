@@ -29,6 +29,9 @@ static bool too_many_loops (unsigned loops);
 static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 
+/* 매 틱마다 sleep_list에 있는 thread 중 깨어날 조건을 충족한 thread를 unblock 처리하고 ready list에 삽입 */
+void timer_wakeup(int64_t ticks);
+
 /* Sets up the 8254 Programmable Interval Timer (PIT) to
    interrupt PIT_FREQ times per second, and registers the
    corresponding interrupt. */
@@ -43,6 +46,8 @@ timer_init (void) {
 	outb (0x40, count >> 8);
 
 	intr_register_ext (0x20, timer_interrupt, "8254 Timer");
+
+	list_init(&sleep_list); // sleep list 초기화
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -90,11 +95,14 @@ timer_elapsed (int64_t then) {
 /* Suspends execution for approximately TICKS timer ticks. */
 void
 timer_sleep (int64_t ticks) {
-	int64_t start = timer_ticks ();
+	int64_t wakeup = timer_ticks() + ticks; // 현재 시각에서 파라미터로 받은 자야 할 시간을 더해서 깨어나야 할 시간을 저장
+	struct thread *cur = thread_current(); // 재울 스레드를 현재 실행중인 스레드로 설정
+	enum intr_level old_level = intr_disable(); // 재우는 과정에서 인터럽트를 막기 위해 인터럽트 비활성화 처리
 
-	ASSERT (intr_get_level () == INTR_ON);
-	while (timer_elapsed (start) < ticks)
-		thread_yield ();
+	cur->wakeup_tick = wakeup; // 스레드 구조체에 추가한 wakeup_tick에 wakeup 값 삽입
+	insert_to_sleeplist_in_order(&sleep_list, cur); // sleep_list에 cur을 적절한 위치에 삽입
+	thread_block(); // 실행중인 스레드 block 처리 후 다음 실행할 스레드의 상태 변경(내부에서 schedule 실행)
+	intr_set_level(old_level); // 다시 인터럽트 활성화
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -120,12 +128,13 @@ void
 timer_print_stats (void) {
 	printf ("Timer: %"PRId64" ticks\n", timer_ticks ());
 }
-
+
 /* Timer interrupt handler. */
 static void
 timer_interrupt (struct intr_frame *args UNUSED) {
 	ticks++;
 	thread_tick ();
+	timer_wakeup(ticks);
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
@@ -183,4 +192,23 @@ real_time_sleep (int64_t num, int32_t denom) {
 		ASSERT (denom % 1000 == 0);
 		busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000));
 	}
+}
+
+/* 매 틱마다 sleep_list에 있는 thread 중 깨어날 조건을 충족한 thread를 unblock 처리하고 ready list에 삽입 */
+void timer_wakeup(int64_t ticks)
+{					
+	/* sleep_list가 빌 때까지 확인 */
+	while(!list_empty(&sleep_list))	
+	{
+		struct thread *cur = list_entry(list_front(&sleep_list), struct thread, elem); /* sleep_list의 맨 앞 thread를 지정 */	
+		
+		/* thread에 정의된 wakeup_tick이 현재 ticks보다 클 경우 탐색 종료 */
+		if(cur->wakeup_tick > ticks) 
+			break;
+		
+		list_pop_front(&sleep_list); /* sleep_list의 맨 앞 thread를 pop */
+		thread_unblock(cur); /* 실행중인 스레드 block 처리 후 ready_list에 삽입 */					
+	}	
+	
+	return;
 }

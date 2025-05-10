@@ -24,6 +24,9 @@
    Do not modify this value. */
 #define THREAD_BASIC 0xd42df210
 
+/* 잠든 스레드를 저장할 리스트 구조체 */
+struct list sleep_list;
+
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
@@ -408,7 +411,7 @@ init_thread (struct thread *t, const char *name, int priority) {
 	strlcpy (t->name, name, sizeof t->name);
 	t->tf.rsp = (uint64_t) t + PGSIZE - sizeof (void *);
 	t->priority = priority;
-	t->magic = THREAD_MAGIC;
+	t->magic = THREAD_MAGIC;	
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
@@ -587,4 +590,36 @@ allocate_tid (void) {
 	lock_release (&tid_lock);
 
 	return tid;
+}
+
+/* Sleep List에 순서대로 삽입 */
+void
+insert_to_sleeplist_in_order(struct list *sleeplist, struct thread *cur)
+{	
+	if(list_empty(sleeplist)) /* 리스트가 비어있으면 */
+	{
+		list_push_front(sleeplist, &cur->elem); /* 리스트 제일 앞에 삽입 */	
+		return;
+	}
+
+	/* 리스트를 순회하며 삽입할 스레드의 wakeup_tick보다 큰 값을 가진 thread 앞에 삽입 */
+	for(struct list_elem *e = list_begin(sleeplist); e != list_end(sleeplist); e = list_next(e))
+	{
+		struct thread *cmp_thread = list_entry(e, struct thread, elem); /* elem e를 바탕으로 비교할 스레드 정의 */
+
+		if(cur->wakeup_tick < cmp_thread->wakeup_tick)
+		{
+			list_insert(e, &cur->elem);
+			return;
+		}
+
+		/* 동일한 tick에 깨어나야 할 스레드가 복수일 경우를 대비하여 우선순위가 높은 스레드가 앞에 삽입 */
+		else if(cur->wakeup_tick == cmp_thread->wakeup_tick && cur->priority > cmp_thread->priority)
+			{
+				list_insert(e, &cur->elem);
+				return;
+			}
+		}
+
+	list_push_back(sleeplist, &cur->elem); /* 리스트 내 삽입할 적절한 위치가 없으면 마지막에 삽입 */
 }
