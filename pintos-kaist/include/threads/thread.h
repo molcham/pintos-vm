@@ -120,7 +120,6 @@ extern bool thread_mlfqs;
 
 /* THREADS #1. Alarm Clock */
 void thread_sleep (int64_t ticks);
-bool cmp_thread_ticks (const struct list_elem *a, const struct list_elem *b, void *aux);
 void thread_awake (int64_t global_ticks);
 void update_closest_tick (int64_t ticks);
 int64_t closest_tick (void);
@@ -154,8 +153,5 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 void do_iret (struct intr_frame *tf);
-
-void thread_sleep(int64_t ticks);
-void thread_wakeup(int64_t os_ticks);
 
 #endif /* threads/thread.h */
