@@ -90,7 +90,11 @@ struct thread {
 	tid_t tid;                          /* Thread identifier. */
 	enum thread_status status;          /* Thread state. */
 	char name[16];                      /* Name (for debugging purposes). */
-	int priority;                       /* Priority. */	
+	int priority;                       /* Priority. */
+	int64_t wakeup_ticks;				// 일어날 시각 추가
+	struct list donations;              /* 우선순위 donations를 추적하기 위한 리스트 */
+	struct lock *wait_on_lock;          /* 대기 중인 락 */
+	int base_priority;                  /* 기부 이전 우선순위 */
 
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
@@ -107,16 +111,20 @@ struct thread {
 	/* Owned by thread.c. */
 	struct intr_frame tf;               /* Information for switching */
 	unsigned magic;                     /* Detects stack overflow. */
-	int64_t wakeup_tick;                /* 깨어나야 할 시점(tick) */ 
 };
-
-/* 잠든 스레드를 저장할 리스트 구조체 */
-extern struct list sleep_list;
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
+
+/* THREADS #1. Alarm Clock */
+void thread_sleep (int64_t ticks);
+bool cmp_thread_ticks (const struct list_elem *a, const struct list_elem *b, void *aux);
+void thread_awake (int64_t global_ticks);
+void update_closest_tick (int64_t ticks);
+int64_t closest_tick (void);
+bool cmp_priority(const struct list_elem *a, const struct list_elem *b, void *aux);
 
 void thread_init (void);
 void thread_start (void);
@@ -147,7 +155,7 @@ int thread_get_load_avg (void);
 
 void do_iret (struct intr_frame *tf);
 
-/* 특정 스레드를 Sleep List에 순서대로 삽입하는 함수 */ 
-void insert_to_sleeplist_in_order(struct list *sleeplist, struct thread *cur); 
+void thread_sleep(int64_t ticks);
+void thread_wakeup(int64_t os_ticks);
 
 #endif /* threads/thread.h */
