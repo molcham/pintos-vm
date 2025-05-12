@@ -32,7 +32,6 @@
 //=== [3] Thread Lists & Global State ===//
 static struct list ready_list;         // 스레드 READY 상태 큐
 static struct list sleep_list;         // BLOCKED 상태 큐 (알람 용도)
-static struct list wait_list;		   // ❓
 static struct list destruction_req;    // 제거 대기 중인 스레드 리스트
 
 static struct thread *idle_thread;     // idle 상태의 스레드 포인터
@@ -42,9 +41,9 @@ static int64_t awake_closest_tick;     // 다음으로 깨워야 할 tick = 가�
 static unsigned thread_ticks;          // 최근 타임슬라이스 틱 수 = 마지막 yield 이후의 ticks
 
 /* 통계용 틱 카운터 */
-static long long idle_ticks;		   // ❓
-static long long kernel_ticks;		   // ❓
-static long long user_ticks;		   // ❓
+static long long idle_ticks;		   
+static long long kernel_ticks;		   
+static long long user_ticks;		   
 
 /* tid 할당용 락 */
 static struct lock tid_lock;		   // TID 할당용 락
@@ -76,7 +75,7 @@ static tid_t allocate_tid (void);
 
 /* ------------------ Ready/Sleep Queue Compare Functions ------------------ */
 bool cmp_priority (const struct list_elem *a, const struct list_elem *b, void *aux);
-static bool cmp_wakeup_tick (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
+static bool cmp_wakeup_tick (const struct list_elem *a, const struct list_elem *b, void *aux);
 static void preempt_priority(void);
 
 /* ------------------ Debug Utilities ------------------ */
@@ -114,8 +113,7 @@ thread_init (void) {
 	/* Init the global thread context */
 	lock_init (&tid_lock);                   // TID 할당을 위한 락 초기화
 	list_init (&ready_list);                 // 준비 상태 스레드 리스트 초기화
-	list_init (&sleep_list);                 // ⏰ sleep 상태 스레드 리스트 초기화
-	list_init (&wait_list);					 // ❓
+	list_init (&sleep_list);                 // ⏰ sleep 상태 스레드 리스트 초기화	
 	list_init (&destruction_req);            // 제거 요청 대기 스레드 리스트 초기화
 
 	/* Set up a thread structure for the running thread. */
@@ -671,6 +669,8 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->tf.rsp = (uint64_t) t + PGSIZE - sizeof (void *);
 	t->priority = priority;
 	t->magic = THREAD_MAGIC;
+	t->wait_on_lock = NULL;
+	t->base_priority = priority;
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
