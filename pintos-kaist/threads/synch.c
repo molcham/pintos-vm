@@ -186,9 +186,13 @@ void
 lock_acquire (struct lock *lock) {
 	ASSERT (lock != NULL);
 	ASSERT (!intr_context ());
-	ASSERT (!lock_held_by_current_thread (lock));
+	
+	donate_priority(thread_current, &lock->holder); /* 우선순위 donation */
 
 	sema_down (&lock->semaphore);
+
+	/* lock 획득에 따른 holder, wait_on_lock 갱신 */
+	thread_current()->wait_on_lock = NULL;
 	lock->holder = thread_current ();
 }
 
