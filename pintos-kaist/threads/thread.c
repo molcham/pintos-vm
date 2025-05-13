@@ -78,6 +78,11 @@ bool cmp_priority (const struct list_elem *a, const struct list_elem *b, void *a
 static bool cmp_wakeup_tick (const struct list_elem *a, const struct list_elem *b, void *aux);
 static void preempt_priority(void);
 
+
+//=== [6] Global Function Declarations ===//
+
+void recal_priority(struct thread *t);
+
 /* ------------------ Debug Utilities ------------------ */
 // static void debug_print_thread_lists (void);    // 디버깅용 리스트 출력 함수
 
@@ -851,22 +856,19 @@ allocate_tid (void)
 	return tid;
 }
 
-// /* ------------------ 디버깅용 리스트 출력 함수 ------------------ */
-// static void
-// debug_print_thread_lists(void) {
-//   struct list_elem *e;
+void recal_priority(struct thread *t)
+{
+	int max_p = t->base_priority; /* base_priority로 초기화 */
 
-//   // printf("[LIST] ready_list: ");
-//   for (e = list_begin(&ready_list); e != list_end(&ready_list); e = list_next(e)) {
-//     struct thread *t = list_entry(e, struct thread, elem);
-//     printf("(%s, pri=%d) ", t->name, t->priority);
-//   }
-//   printf("\n");
+	/* 해상 thread의 donations list에 있는 thread들을 순회하며 가장 큰 priority를 탐색 */
+	for(struct list_elem *e = list_begin(&t->donations); e != list_end(&t->donations); e = list_next(e))
+	{
+		struct thread *cmp_t = list_entry(e, struct thread, d_elem);
+		max_p = max_p > cmp_t->priority ? max_p : cmp_t->priority;
+	}
 
-//   // printf("[LIST] sleep_list: ");
-//   for (e = list_begin(&sleep_list); e != list_end(&sleep_list); e = list_next(e)) {
-//     struct thread *t = list_entry(e, struct thread, elem);
-//     printf("(%s, wakeup=%lld) ", t->name, t->wakeup_ticks);
-//   }
-//   printf("\n");
-// }
+	// max_p = max_p > t->priority ? max_p : t->priority; /* 현재 thread의 우선 순위와 donations list 중에 큰 priority로 갱신 */
+	t->priority = max_p; /* t의 priority 값 갱신 */
+
+	return;
+}
