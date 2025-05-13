@@ -196,16 +196,16 @@ thread_create (const char *name, int priority,
 
 	ASSERT (function != NULL);			// 실행할 함수는 NULL일 수 없음
 
-	/* 1. 스레드 구조체 메모리 할당 및 0으로 초기화 */
+	/* 스레드 구조체 메모리 할당 및 0으로 초기화 */
 	t = palloc_get_page (PAL_ZERO);   	// PAL_ZERO: 할당 후 0으로 초기화
 	if (t == NULL)
 		return TID_ERROR;				// 메모리 할당 실패 시 오류 반환
 
-	/* 2. 스레드 초기화 및 TID 설정 */
+	/* 스레드 초기화 및 TID 설정 */
 	init_thread (t, name, priority);     // 이름과 우선순위 설정
 	tid = t->tid = allocate_tid ();      // 고유한 TID 할당
 
-	/* 3. 새 스레드가 실행할 함수와 컨텍스트 설정 */
+	/* 새 스레드가 실행할 함수와 컨텍스트 설정 */
 	t->tf.rip = (uintptr_t) kernel_thread;	// 실행 시작 지점을 kernel_thread로 설정
 	t->tf.R.rdi = (uint64_t) function;      // 첫 번째 인자로 실행할 함수 전달
 	t->tf.R.rsi = (uint64_t) aux;           // 두 번째 인자로 함수 인자 전달
@@ -215,14 +215,15 @@ thread_create (const char *name, int priority,
 	t->tf.cs = SEL_KCSEG;                   // 코드 세그먼트
 	t->tf.eflags = FLAG_IF;                 // 인터럽트 플래그 설정
 
-	/* 4. 스레드를 READY 상태로 전환하고 ready_list에 삽입 */
+	/* 스레드를 READY 상태로 전환하고 ready_list에 삽입 */
 	thread_unblock (t);
+
+	/* 우선순위 업데이트 */
+	recalc_priority(thread_current());	
 	
 	/** project1-Priority Scheduling */
 	if(t->priority > thread_current()->priority)
-		thread_yield();
-
-	// preempt_priority();	// 🔥 removed: thread_unblock already handles preemption logic
+		thread_yield();	
 
 	return tid;								// 생성된 스레드의 ID 반환
 }
