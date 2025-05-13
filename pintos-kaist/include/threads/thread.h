@@ -118,6 +118,9 @@ struct thread {
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
+extern void donate_priority(struct thread *donur, struct thread *holder);
+extern bool is_in_donations(struct thread *donur, struct thread *holder);
+
 
 /* THREADS #1. Alarm Clock */
 void thread_sleep (int64_t ticks);

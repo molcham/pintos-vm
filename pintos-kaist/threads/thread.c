@@ -80,8 +80,9 @@ static void preempt_priority(void);
 
 
 //=== [6] Global Function Declarations ===//
-
 void recal_priority(struct thread *t);
+void donate_priority(struct thread *donur, struct thread *holder);
+bool is_in_donations(struct thread *donur, struct thread *holder);
 
 /* ------------------ Debug Utilities ------------------ */
 // static void debug_print_thread_lists (void);    // 디버깅용 리스트 출력 함수
@@ -872,4 +873,41 @@ void recal_priority(struct thread *t)
 	t->priority = max_p; /* t의 priority 값 갱신 */
 
 	return;
+}
+
+void donate_priority(struct thread *donur, struct thread *holder)
+{
+	/* holder가 없거나 donur이면 함수 종료 */
+	if(holder == NULL || holder == donur)
+		return;
+		
+	/* holder의 donations 목록에 donur가 포함되지 않은 경우에만 리스트에 삽입 */
+	if(!is_in_donations(donur, holder))
+	{
+		if(donur->priority > holder->priority)		
+		{
+			enum intr_level old_level = intr_disable (); /* 인터럽트 비활성화 */
+		
+			list_push_back(&holder->donations, &donur->d_elem);
+			
+			intr_set_level (old_level); /* 인터럽트 복구 */
+			
+			recal_priority(holder);			
+		}
+	}
+
+	return;
+}
+
+bool is_in_donations(struct thread *donur, struct thread *holder)
+{
+	struct list_elem *donur_d_elem = &donur->d_elem;
+	
+	for(struct list_elem *e = list_begin(&holder->donations); e != list_end(&holder->donations); e = list_next(e))
+	{
+		if(e == donur_d_elem)
+			return true;
+	}
+
+	return false;
 }
