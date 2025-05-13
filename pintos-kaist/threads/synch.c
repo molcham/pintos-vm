@@ -186,14 +186,17 @@ void
 lock_acquire (struct lock *lock) {
 	ASSERT (lock != NULL);
 	ASSERT (!intr_context ());
+	thread_current()->wait_on_lock = lock;
 	
-	donate_priority(thread_current, &lock->holder); /* 우선순위 donation */
+	/* holder가 없거나, donur 자신인 경우, holder의 우선순위가 더 높은 경우를 제외하고, donur의 우선순위 donation */
+	donate_priority(thread_current(), &lock->holder); 
 
+	/* sema의 value가 0이면 실행중인 thread를 block, 그렇지 않으면 value를 0으로 만들고 종료 */
 	sema_down (&lock->semaphore);
 
-	/* lock 획득에 따른 holder, wait_on_lock 갱신 */
-	thread_current()->wait_on_lock = NULL;
+	/* lock 획득에 따른 holder, wait_on_lock 갱신 */	
 	lock->holder = thread_current ();
+	thread_current()->wait_on_lock = NULL;
 }
 
 /* Tries to acquires LOCK and returns true if successful or false

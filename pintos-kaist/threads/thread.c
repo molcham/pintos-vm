@@ -220,7 +220,7 @@ thread_create (const char *name, int priority,
 	thread_unblock (t);
 
 	/* 우선순위 업데이트 */
-	recalc_priority(thread_current());	
+	recal_priority(thread_current());	
 	
 	/** project1-Priority Scheduling */
 	if(t->priority > thread_current()->priority)
@@ -879,22 +879,19 @@ void donate_priority(struct thread *donur, struct thread *holder)
 {
 	/* holder가 없거나 donur이면 함수 종료 */
 	if(holder == NULL || holder == donur)
-		return;
-		
-	/* holder의 donations 목록에 donur가 포함되지 않은 경우에만 리스트에 삽입 */
-	if(!is_in_donations(donur, holder))
+		return;		
+	
+	/* donur의 우선순위가 더 높을 때만 donation 수행 */
+	if(donur->priority > holder->priority)		
 	{
-		if(donur->priority > holder->priority)		
-		{
-			enum intr_level old_level = intr_disable (); /* 인터럽트 비활성화 */
+		enum intr_level old_level = intr_disable (); /* 인터럽트 비활성화 */
+	
+		list_push_back(&holder->donations, &donur->d_elem);
 		
-			list_push_back(&holder->donations, &donur->d_elem);
-			
-			intr_set_level (old_level); /* 인터럽트 복구 */
-			
-			recal_priority(holder);			
-		}
-	}
+		intr_set_level (old_level); /* 인터럽트 복구 */
+		
+		recal_priority(holder);			
+	}	
 
 	return;
 }
