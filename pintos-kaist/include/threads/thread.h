@@ -97,7 +97,8 @@ struct thread {
 	int base_priority;                  /* 기부 이전 우선순위 */
 
 	/* Shared between thread.c and synch.c. */
-	struct list_elem elem;              /* List element. */
+	struct list_elem elem;              /* sleep, ready List element. */
+	struct list_elem d_elem;            /* donation List element. */
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */

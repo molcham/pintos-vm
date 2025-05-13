@@ -649,14 +649,7 @@ kernel_thread (thread_func *function, void *aux) {
 }
 
 
-/* Does basic initialization of T as a blocked thread named
-   NAME. 
-   
-   ✅ TODO: priority donation을 위해 필요한 필드 초기화
-     1. donations 리스트 초기화 - 우선순위 기부 내역을 관리하기 위한 리스트
-     2. wait_on_lock 초기화 - 대기 중인 락의 주소를 추적하기 위한 포인터
-     3. base_priority 초기화 - 원래 우선순위를 저장하는 멤버 변수
-   */
+/* Does basic initialization of T as a blocked thread named */   
 static void
 init_thread (struct thread *t, const char *name, int priority) {
 	ASSERT (t != NULL);
@@ -665,12 +658,14 @@ init_thread (struct thread *t, const char *name, int priority) {
 
 	memset (t, 0, sizeof *t);
 	t->status = THREAD_BLOCKED;
+	t->wakeup_ticks = 0;
 	strlcpy (t->name, name, sizeof t->name);
 	t->tf.rsp = (uint64_t) t + PGSIZE - sizeof (void *);
 	t->priority = priority;
 	t->magic = THREAD_MAGIC;
-	t->wait_on_lock = NULL;
-	t->base_priority = priority;
+	t->wait_on_lock = NULL; 
+	t->base_priority = priority; 
+	list_init(&t->donations); /* 리스트 초기화 필요 */
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
