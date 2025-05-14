@@ -30,7 +30,8 @@
    #include <stdio.h>
    #include <string.h>
    #include "threads/interrupt.h"
-   #include "threads/thread.h"
+   #include "threads/thread.h"   
+   bool cmp_sema_priority(struct list_elem *a, struct list_elem *b, void *aux);
    
    /* Initializes semaphore SEMA to VALUE.  A semaphore is a
 	  nonnegative integer along with two atomic operators for
@@ -114,7 +115,8 @@
 	   old_level = intr_disable ();
 	   if (!list_empty (&sema->waiters))
 	   {
-		    list_sort(&sema->waiters, cmp_priority, NULL);
+		    /* sema의 대기열에서 lock holder가 donation을 받아 우선순위가 바뀌는 경우를 상정하여 재정렬 */
+			list_sort(&sema->waiters, cmp_priority, NULL);
 			thread_unblock (list_entry (list_pop_front (&sema->waiters), struct thread, elem));
 	   }
 	   
@@ -305,18 +307,21 @@
 	  we need to sleep. */
    void
    cond_wait (struct condition *cond, struct lock *lock) {
-	   struct semaphore_elem waiter;
+	   	struct semaphore_elem waiter;
    
-	   ASSERT (cond != NULL);
-	   ASSERT (lock != NULL);
-	   ASSERT (!intr_context ());
-	   ASSERT (lock_held_by_current_thread (lock));
+	   	ASSERT (cond != NULL);
+	   	ASSERT (lock != NULL);
+	   	ASSERT (!intr_context ());
+	   	ASSERT (lock_held_by_current_thread (lock));
    
-	   sema_init (&waiter.semaphore, 0);
-	   list_push_back (&cond->waiters, &waiter.elem);
-	   lock_release (lock);
-	   sema_down (&waiter.semaphore);
-	   lock_acquire (lock);
+	   	sema_init (&waiter.semaphore, 0);
+	   
+	 	/* 각 semaphore의 대기열에 있는 스레드간 우선순위를 비교하여 리스트에 삽입 */  
+	   	list_insert_ordered(&cond->waiters, &waiter.elem, cmp_sema_priority, NULL);
+
+	   	lock_release (lock);
+	   	sema_down (&waiter.semaphore);
+	   	lock_acquire (lock);
    }
    
    /* If any threads are waiting on COND (protected by LOCK), then
@@ -334,8 +339,11 @@
 	   ASSERT (lock_held_by_current_thread (lock));
    
 	   if (!list_empty (&cond->waiters))
-		   sema_up (&list_entry (list_pop_front (&cond->waiters),
-					   struct semaphore_elem, elem)->semaphore);
+	   {
+			/* cond의 대기열에서 lock holder가 donation을 받아 우선순위가 바뀌는 경우를 상정하여 재정렬 */
+			list_sort(&cond->waiters, cmp_sema_priority, NULL);
+			sema_up (&list_entry (list_pop_front (&cond->waiters), struct semaphore_elem, elem)->semaphore);
+	   }		   	  	
    }
    
    /* Wakes up all threads, if any, waiting on COND (protected by
@@ -352,4 +360,24 @@
 	   while (!list_empty (&cond->waiters))
 		   cond_signal (cond, lock);
    }
+
+   bool 
+   cmp_sema_priority(struct list_elem *a, struct list_elem *b, void *aux UNUSED)
+   {
+		/* 각 semaphore에 접근 */
+		struct semaphore_elem *sema_a = list_entry(a, struct semaphore_elem, elem);
+    	struct semaphore_elem *sema_b = list_entry(b, struct semaphore_elem, elem);   
+
+		/* 각 semaphore의 대기열 리스트에 접근 */		
+		struct list *waiters_a = &(sema_a->semaphore.waiters);
+		struct list *waiters_b = &(sema_b->semaphore.waiters);
+   
+	   	/* 각 대기열에 있는 스레드에 접근 */
+		struct thread *root_a = list_entry(list_begin(waiters_a), struct thread, elem);
+	   	struct thread *root_b = list_entry(list_begin(waiters_b), struct thread, elem);
+   
+	   	/* 두 스레드의 우선순위 비교 */
+		return root_a->priority > root_b->priority;
+   }
+
    

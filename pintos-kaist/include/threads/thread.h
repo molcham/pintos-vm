@@ -129,7 +129,7 @@ void thread_sleep (int64_t ticks);
 void thread_awake (int64_t global_ticks);
 void update_closest_tick (int64_t ticks);
 int64_t closest_tick (void);
-bool cmp_priority(const struct list_elem *a, const struct list_elem *b, void *aux);
+bool cmp_priority(const struct list_elem *a, const struct list_elem *b, void *aux); 
 
 void thread_init (void);
 void thread_start (void);
