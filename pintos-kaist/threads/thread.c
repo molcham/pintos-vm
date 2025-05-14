@@ -82,8 +82,8 @@ void preempt_priority(void);
 //=== [6] Global Function Declarations ===//
 void preempt_priority(void);
 void recal_priority(struct thread *t);
-void donate_priority(struct thread *donur, struct thread *holder);
-bool is_in_donations(struct thread *donur, struct thread *holder);
+void donate_priority(struct thread *donor, struct thread *holder);
+bool is_in_donations(struct thread *donor, struct thread *holder);
 
 /* ------------------ Debug Utilities ------------------ */
 // static void debug_print_thread_lists (void);    // 디버깅용 리스트 출력 함수
@@ -880,35 +880,65 @@ void recal_priority(struct thread *t)
 	return;
 }
 
-void donate_priority(struct thread *donur, struct thread *holder)
+void donate_priority(struct thread *donor, struct thread *holder)
 {
 	struct thread *curr = thread_current();
-	/* holder가 없거나 donur이면 함수 종료 */
-	if(holder == NULL || holder == donur)		
-		return;			
+	/* holder가 없거나 donor이면 함수 종료 */
+	if(holder == NULL || holder == donor)		
+		return;				
 	
-	/* donur의 우선순위가 더 높을 때만 donation 수행 */
-	if(donur->priority > holder->priority)		
-	{
-		enum intr_level old_level = intr_disable (); /* 인터럽트 비활성화 */
-	
-		list_push_back(&holder->donations, &donur->d_elem);
-		
-		intr_set_level (old_level); /* 인터럽트 복구 */
-		
-		recal_priority(holder);			
-	}	
+	int depth = 0;
 
-	return;
+	while (depth < 8 && holder != NULL)
+	{
+		/* donor의 우선순위가 holder보다 높을 때만 donation */
+		if (donor->priority > holder->priority)
+		{			
+			/* 중복 삽입 방지 */
+			bool already_donated = false;
+			for (struct list_elem *e = list_begin(&holder->donations); e != list_end(&holder->donations); e = list_next(e))
+			{
+				struct thread *t = list_entry(e, struct thread, d_elem);
+				if (t == donor)
+				{
+					already_donated = true;
+					break;
+				}
+			}
+
+			/* 중복이 아닐 경우에만 donations 리스트에 삽입 */
+			if (!already_donated)			
+			{	
+				enum intr_level old_level = intr_disable();  /* 인터럽트 비활성화 */
+				
+				list_insert_ordered(&holder->donations, &donor->d_elem, cmp_priority, NULL);			
+				
+				intr_set_level(old_level);   /* 인터럽트 복구 */
+			}
+
+			recal_priority(holder);  /* 우선순위 재계산 */			
+		}
+
+		/* holder의 wait_on_lock이 있을 경우 반복 호출 */
+		if (holder->wait_on_lock != NULL)
+		{
+			donor = holder;
+			holder = holder->wait_on_lock->holder;
+		}
+		else
+			break;
+
+		depth++;
+	}
 }
 
-bool is_in_donations(struct thread *donur, struct thread *holder)
+bool is_in_donations(struct thread *donor, struct thread *holder)
 {
-	struct list_elem *donur_d_elem = &donur->d_elem;
+	struct list_elem *donor_d_elem = &donor->d_elem;
 	
 	for(struct list_elem *e = list_begin(&holder->donations); e != list_end(&holder->donations); e = list_next(e))
 	{
-		if(e == donur_d_elem)
+		if(e == donor_d_elem)
 			return true;
 	}
 
