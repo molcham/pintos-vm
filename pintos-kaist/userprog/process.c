@@ -26,11 +26,12 @@ static void process_cleanup (void);
 static bool load (const char *file_name, struct intr_frame *if_);
 static void initd (void *f_name);
 static void __do_fork (void *);
+static int parse_cmdline(char *cmdline, char **argv, int max_arg);
 
 /* General process initializer for initd and other process. */
 static void
 process_init (void) {
-	struct thread *current = thread_current ();
+	struct thread *current = thread_current ();	
 }
 
 /* Starts the first userland program, called "initd", loaded from FILE_NAME.
@@ -44,7 +45,8 @@ process_create_initd (const char *file_name) {
 	tid_t tid;
 
 	/* Make a copy of FILE_NAME.
-	 * Otherwise there's a race between the caller and load(). */
+	 * Otherwise there's a race between the caller and load(). 
+	 * 커널에서 페이지 단위로 메모리를 할당하는 palloc_get_page 함수를 호출 */
 	fn_copy = palloc_get_page (0);
 	if (fn_copy == NULL)
 		return TID_ERROR;
@@ -53,7 +55,7 @@ process_create_initd (const char *file_name) {
 	/* Create a new thread to execute FILE_NAME. */
 	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
 	if (tid == TID_ERROR)
-		palloc_free_page (fn_copy);
+		palloc_free_page (fn_copy); /* 커널 영역에 스레드 생성 실패 시 메모리 해제 */
 	return tid;
 }
 
@@ -162,23 +164,25 @@ error:
  * Returns -1 on fail. */
 int
 process_exec (void *f_name) {
+	/* 스레드 구조체 안에 정의된 intr_frame 필드는 인터럽트나 컨텍스트 스위치가 일어날 때, CPU의 레지스터를 저장해두는 버퍼 용도
+	 * process_exec 함수에서 해당 필드를 사용하면 스레드가 다른 작업으로 바뀌었다가 돌아올 때, 스케쥴러가 같은 공간에 CPU 상태를 덮어쓰게 됨
+	 * 때문에 함수 내부에 struct intr_frame _if;를 별도로 선언하여 값을 관리 */
 	char *file_name = f_name;
-	bool success;
-
-	/* We cannot use the intr_frame in the thread structure.
-	 * This is because when current thread rescheduled,
-	 * it stores the execution information to the member. */
+	bool success;				
 	struct intr_frame _if;
+
+	memset(&_if, 0, sizeof(_if));	
+
 	_if.ds = _if.es = _if.ss = SEL_UDSEG;
 	_if.cs = SEL_UCSEG;
 	_if.eflags = FLAG_IF | FLAG_MBS;
 
 	/* We first kill the current context */
-	process_cleanup ();
-
+	process_cleanup ();		
+	
 	/* And then load the binary */
-	success = load (file_name, &_if);
-
+	success = load(file_name, &_if);		
+		
 	/* If load failed, quit. */
 	palloc_free_page (file_name);
 	if (!success)
@@ -187,6 +191,24 @@ process_exec (void *f_name) {
 	/* Start switched process. */
 	do_iret (&_if);
 	NOT_REACHED ();
+}
+
+
+int parse_cmdline(char *cmdline, char **argv, int max_arg)
+{
+	int argc = 0;
+	char *token;
+	char *saveptr;	
+
+	token = strtok_r(cmdline, " ", &saveptr);
+	while(token != NULL && argc < max_arg)
+	{
+		argv[argc++] = token;
+		token = strtok_r(NULL, " ", &saveptr);
+	}
+
+	argv[argc] = NULL;
+	return argc;
 }
 
 
@@ -204,6 +226,8 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
+	while(true) { /* 일단 무기한 대기 */
+	}
 	return -1;
 }
 
@@ -322,12 +346,21 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
  * Returns true if successful, false otherwise. */
 static bool
 load (const char *file_name, struct intr_frame *if_) {
+	#define MAX_ARGC 16		
+	char *argv[MAX_ARGC + 1];	
+	int argc;
+
 	struct thread *t = thread_current ();
 	struct ELF ehdr;
 	struct file *file = NULL;
 	off_t file_ofs;
 	bool success = false;
-	int i;
+	int i;	
+
+	/* file_name을 띄어쓰기 단위로 파싱하여 argv 배열에 순차적으로 삽입 */
+	argc = parse_cmdline(file_name, argv, MAX_ARGC);
+
+	file_name = argv[0];
 
 	/* Allocate and activate page directory. */
 	t->pml4 = pml4_create ();
@@ -412,12 +445,52 @@ load (const char *file_name, struct intr_frame *if_) {
 		goto done;
 
 	/* Start address. */
-	if_->rip = ehdr.e_entry;
+	if_->rip = ehdr.e_entry;	
 
-	/* TODO: Your code goes here.
-	 * TODO: Implement argument passing (see project2/argument_passing.html). */
+	char *rsp = (char *)if_->rsp;	
+	char *addr[64];		
+	int total = 0;
 
-	success = true;
+	/* 명령어의 각 인자를 마지막 원소부터 첫 원소 순으로 넣기 */
+	for(int i = (argc - 1); i >= 0; i--)
+	{
+		int len = strlen(argv[i]) + 1;
+		rsp -= len;
+		strlcpy(rsp, argv[i], len);							
+		addr[i] = rsp;
+		total += len;
+	}
+
+	/* 패딩을 추가한 뒤에 해당 주소에 모두 0으로 초기화 */ 	
+	uint8_t aligned = (total + 7) & ~0x7;
+	uint8_t padding = aligned - total;	
+	rsp -= padding;
+	memset(rsp, 0, padding);
+
+	/* NULL값 넣기 */	
+	rsp -= sizeof(char *);
+	*(void **)rsp = NULL;
+	
+	/* 각 명령어 인자의 주소 넣기 */	
+	for(int i = (argc - 1); i >= 0; i--)
+	{
+		rsp -= sizeof(char *);
+		*(void **)rsp = addr[i];
+	}
+	char **start_argv = (char **)rsp;	
+
+	/* fake address(0) 넣기 */
+	rsp -= sizeof(void *);
+	*(void **)rsp = 0; 	
+
+	hex_dump((void*)rsp, rsp, 64, true);
+
+	/* 인터럽트 프레임의 레지스터 값 최신화 */	
+	if_->R.rdi = argc;
+	if_->R.rsi = (uintptr_t)start_argv;
+	if_->rsp   = (uintptr_t) rsp;
+	
+	success = true;	
 
 done:
 	/* We arrive here whether the load is successful or not. */
