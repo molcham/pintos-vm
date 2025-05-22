@@ -94,7 +94,9 @@ struct thread {
 	int64_t wakeup_ticks;				// 일어날 시각 추가
 	struct list donations;              /* 우선순위 donations를 추적하기 위한 리스트 */
 	struct lock *wait_on_lock;          /* 대기 중인 락 */
-	int base_priority;                  /* 기부 이전 우선순위 */
+	int base_priority;                  /* 기부 이전 우선순위 */	
+	struct file *fdt[64];                /* 파일 디스크립터 테이블 */	
+	int next_fd;                        /* 다음에 배정할 fd */ 
 
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* sleep, ready List element. */

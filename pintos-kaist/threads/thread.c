@@ -121,13 +121,13 @@ thread_init (void) {
 	lock_init (&tid_lock);                   // TID 할당을 위한 락 초기화
 	list_init (&ready_list);                 // 준비 상태 스레드 리스트 초기화
 	list_init (&sleep_list);                 // ⏰ sleep 상태 스레드 리스트 초기화	
-	list_init (&destruction_req);            // 제거 요청 대기 스레드 리스트 초기화
+	list_init (&destruction_req);            // 제거 요청 대기 스레드 리스트 초기화	
 
 	/* Set up a thread structure for the running thread. */
 	initial_thread = running_thread ();      // 현재 실행 중인 스레드를 thread 구조체로 변환
 	init_thread (initial_thread, "main", PRI_DEFAULT);  // 초기 스레드 이름과 우선순위 설정
 	initial_thread->status = THREAD_RUNNING; // 현재 실행 중 상태로 표시
-	initial_thread->tid = allocate_tid ();   // TID 할당
+	initial_thread->tid = allocate_tid ();   // TID 할당	
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -676,8 +676,10 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->priority = priority;
 	t->magic = THREAD_MAGIC;
 	t->wait_on_lock = NULL; 
-	t->base_priority = priority; 
-	list_init(&t->donations); /* 리스트 초기화 필요 */
+	t->base_priority = priority; 	
+	t->next_fd = 3;
+	
+	list_init(&t->donations); /* donation 리스트 초기화 */	
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
@@ -867,7 +869,7 @@ void recal_priority(struct thread *t)
 {
 	int max_p = t->base_priority; /* base_priority로 초기화 */
 
-	/* 해상 thread의 donations list에 있는 thread들을 순회하며 가장 큰 priority를 탐색 */
+	/* 해당 thread의 donations list에 있는 thread들을 순회하며 가장 큰 priority를 탐색 */
 	for(struct list_elem *e = list_begin(&t->donations); e != list_end(&t->donations); e = list_next(e))
 	{
 		struct thread *cmp_t = list_entry(e, struct thread, d_elem);

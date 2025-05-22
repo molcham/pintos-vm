@@ -483,7 +483,7 @@ load (const char *file_name, struct intr_frame *if_) {
 	rsp -= sizeof(void *);
 	*(void **)rsp = 0; 	
 
-	hex_dump((void*)rsp, rsp, 64, true);
+	//hex_dump((void*)rsp, rsp, 64, true);
 
 	/* 인터럽트 프레임의 레지스터 값 최신화 */	
 	if_->R.rdi = argc;
@@ -709,4 +709,5 @@ setup_stack (struct intr_frame *if_) {
 
 	return success;
 }
+
 #endif /* VM */
