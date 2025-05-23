@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/interrupt.h"
+#include "threads/synch.h"
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -95,8 +96,15 @@ struct thread {
 	struct list donations;              /* 우선순위 donations를 추적하기 위한 리스트 */
 	struct lock *wait_on_lock;          /* 대기 중인 락 */
 	int base_priority;                  /* 기부 이전 우선순위 */	
-	struct file *fdt[64];                /* 파일 디스크립터 테이블 */	
+	struct file *fdt[64];               /* 파일 디스크립터 테이블 */	
 	int next_fd;                        /* 다음에 배정할 fd */ 
+	int exit_status;	                /* 종료 상태 확인 */
+	
+	struct list children;               /* 자식 리스트 */	
+	struct list_elem c_elem;            /* 자식 리스트 요소(본인이 자식일 때) */ 
+
+	struct semaphore exit_sema;         /* exit 하기 전 부모에게 상태 전달 여부 확인 */ 
+	struct semaphore wait_sema;         /* exit 하기 전 자식 상태 확인 */ 
 
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* sleep, ready List element. */

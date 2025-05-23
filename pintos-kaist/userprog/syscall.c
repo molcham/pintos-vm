@@ -9,6 +9,7 @@
 #include "threads/flags.h"
 #include "intrinsic.h"
 #include "filesys/filesys.h"
+#include "filesys/file.h"
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
@@ -26,6 +27,8 @@ void syscall_handler (struct intr_frame *);
 #define MSR_LSTAR 0xc0000082        /* Long mode SYSCALL target */
 #define MSR_SYSCALL_MASK 0xc0000084 /* Mask for the eflags */
 
+int temporary_lock = 0; /* 일시적인 락 */
+
 void
 syscall_init (void) {
 	write_msr(MSR_STAR, ((uint64_t)SEL_UCSEG - 0x10) << 48  |
@@ -39,23 +42,61 @@ syscall_init (void) {
 			FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
 }
 
-/* The main system call interface */
+
 void
 syscall_handler (struct intr_frame *f) {
-	// TODO: Your implementation goes here.
+	
+	uint64_t num = f->R.rax;
+
 	switch (f->R.rax)
 	{
-		case SYS_EXIT:
+		case SYS_HALT:
+			halt();		
+			break;
 		
-		break;
+		case SYS_EXIT:
+			sys_exit(f->R.rdi);		
+			break;
+
+		case SYS_WAIT:
+			wait((tid_t)f->R.rdi);		
+			break;
+		
+		case SYS_CREATE: 		
+			f->R.rax = create(f->R.rdi, f->R.rsi);
+			break;
+
+		case SYS_REMOVE: 		
+			f->R.rax = remove(f->R.rdi);
+			break;
 		
 		case SYS_OPEN: 		
-		f->R.rax = open(f->R.rdi);		
-		break;
+			f->R.rax = open((const char*)f->R.rdi);		
+			break;
+
+		case SYS_FILESIZE: 		
+			f->R.rax = filesize(f->R.rdi);		
+			break;
+
+		case SYS_READ:
+			f->R.rax = read((int)f->R.rdi, (void*)f->R.rsi, (unsigned)f->R.rdx);
+			break;	
 
 		case SYS_WRITE:
-		f->R.rax = write(f->R.rdi, f->R.rsi, f->R.rdx);
-		break;
+			f->R.rax = write((int)f->R.rdi, (const void*)f->R.rsi, (unsigned)f->R.rdx);
+			break;
+
+		case SYS_SEEK:
+			seek(f->R.rdi, f->R.rsi);
+			break;
+
+		case SYS_TELL:
+			f->R.rax = tell(f->R.rdi);
+			break;
+
+		case SYS_CLOSE:
+			close(f->R.rdi);
+			break;
 	
 	default:
 		break;
@@ -63,55 +104,184 @@ syscall_handler (struct intr_frame *f) {
 }
 
 /* 파라미터로 전달받은 주소의 유효성 검증 */
-bool validate_addr(void *addr)
+void validate_addr(const void *addr)
 {
 	if(addr == NULL)
-		return false;
-
-	void *v = pml4_get_page(thread_current()->pml4, addr);
-
-	if( v == NULL)
-		return false;
-
-	return true;
+		return sys_exit(-1);	
+	if((pml4_get_page(thread_current()->pml4, addr)) == NULL)
+		return sys_exit(-1);		
 }
 
-int open(const char *path)
+void halt(void)
+{
+	power_off();	
+	return;
+}
+
+int wait(tid_t tid)
+{
+	int status = process_wait(tid);
+	return status;
+}
+
+bool create(const char *file, unsigned initial_size)
 {
 	/* 파라미터 유효성 검증 */
-	bool v = validate_addr(path);
-	if(!v) return -1;
+	validate_addr(file);
+
+	return filesys_create(file, initial_size);	
+}
+
+bool remove(const char *file) // 추가 구현 필요!
+{
+	/* 파라미터 유효성 검증 */
+	validate_addr(file);
+
+	return filesys_remove(file);
+}
+
+void sys_exit (int status) 
+{
+  struct thread *curr = thread_current ();
+
+  printf ("%s: exit(%d)\n", curr->name, status);  
+  
+  /* 종료 상태 저장 */
+  curr->exit_status = status; 
+
+  /* 부모에게 작업 종료 안내 */ 
+  sema_up(&curr->wait_sema);
+  
+  /* 부모가 확인할때까지 대기 */ 
+  sema_down(&curr->exit_sema);
+	
+  thread_exit();    
+}
+
+int open(const char *file_name)
+{
+	/* 파라미터 유효성 검증 */
+	validate_addr(file_name);	
+	
+	if(strcmp(file_name, "") == 0) return -1;
 	
 	struct thread *curr = thread_current();		
 
 	/* 파일명과 경로 전달한 뒤 file 획득 */
-	struct file *file = filesys_open(path);
-	if(file == NULL) return -1;	
+	struct file *file_obj = filesys_open(file_name);
+	if(file_obj == NULL) return -1;	
 
 	/* fdt에 등록 */
 	int fd = curr->next_fd; // 추후 가리키는 file이 없는 번호를 찾는 로직 필요!	
-	curr->fdt[fd] = file;
-	curr->next_fd++;		
-
+	curr->fdt[fd] = file_obj;
+	curr->next_fd++;	
+		
 	return fd;	
+}
+
+int filesize(int fd)
+{
+	off_t size = file_length(thread_current()->fdt[fd]);	
+	return size;
+}
+
+int read(int fd, void *buffer, unsigned size)
+{
+	struct thread *curr = thread_current();	
+	
+	/* 파라미터 유효성 검증 */
+	validate_addr(buffer);	
+
+	/* 파일이 없거나 표준 입력/에러이거나 할당 가능한 fd 이상이면 종료 */
+	if(fd == 0 || fd == 1 || fd > 63)
+		sys_exit(-1);
+
+	if(curr->fdt[fd] == NULL)
+		sys_exit(-1);	
+	
+	struct file *file = curr->fdt[fd];
+
+	/* 파라미터로 전달받은 size가 유효한지 확인 후 필요 시 size 조정 */
+	if(filesize(fd) < size)
+		size = filesize(fd);
+	
+	/* file_read를 호출하여 실제 읽은 바이트 수를 획득 */
+	off_t bytes_read = file_read(file, buffer, (off_t)size);
+
+	return (int)bytes_read;
 }
 
 int write(int fd, const void *buffer, unsigned size)
 {
+	/* 파라미터 유효성 검증 */
+	validate_addr(buffer);	
+	
+	/* 표준 출력 이용 */
 	if(fd == 1)
 	{
-		/* size에 long unsigned int만큼만 담을 수 있음. buffer가 너무 크면 나눠줘야 함 */	
-		putbuf(buffer, size);
+		putbuf(buffer, size); 
 		return size;
 	}
-	else if(fd < 2)
-	{
-		/* 실행 중인 스레드의 fd_table을 확인하여 fd에 매핑되는 file 정의 */		
-		// file_write(file, buffer, size);
-	}
-	else
-	{
-		/* 에러 처리 */
+	
+	/* 실행 중인 스레드의 fd_table을 확인하여 fd에 매핑되는 file 정의 */		
+	else if(fd > 2 && fd < 64)
+	{		
+		struct file *file = thread_current()->fdt[fd];
+
+		/* file_write를 호출하여 실제 쓴 바이트 수를 획득 */
+		off_t bytes_written = file_write(file, buffer, size);
+		
+		return bytes_written;
 	}	
+
+	sys_exit(-1);
+}
+
+void seek(int fd, unsigned position)
+{
+	file_seek(thread_current()->fdt[fd], position);	
+	return; 
+}
+
+unsigned tell(int fd)
+{
+	off_t position = file_tell(&thread_current()->fdt[fd]);	
+	return position;
+}
+
+void close(int fd)
+{
+	struct thread *curr = thread_current();	
+	
+	/* 파일이 없거나 표준 입력/에러이거나 할당 가능한 fd 이상이면 종료 */
+	if(fd == 0 || fd == 2 || fd > 63)
+		sys_exit(-1);
+
+	if(curr->fdt[fd] == NULL)
+		sys_exit(-1);		
+
+	struct file *file = curr->fdt[fd];
+		
+	file_close(file); 
+
+	/* 할당 받은 파일 디스크립터를 NULL로 처리 */
+	curr->fdt[fd] = NULL;
+
+	return;
+}
+
+struct thread* get_child(tid_t tid)
+{
+	struct thread *curr = thread_current();
+	
+	/* 자식 리스트를 순회하며 파라미터로 받은 tid가 있는지 확인 */
+	for(struct list_elem *e = list_begin(&curr->children); e != list_end(&curr->children); e = list_next(e))
+	{
+		struct thread *t = list_entry(e, struct thread, c_elem);
+		if(tid == t->tid)
+			return t;				
+	}
+
+	return NULL;
 }
 

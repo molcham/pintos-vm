@@ -50,6 +50,8 @@
         "typeinfo": "c",
         "*.inc": "c",
         "thread.h": "c",
-        "lib.h": "c"
+        "lib.h": "c",
+        "stdlib.h": "c",
+        "directory.h": "c"
     }
 }

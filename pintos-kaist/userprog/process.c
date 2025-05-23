@@ -18,6 +18,7 @@
 #include "threads/mmu.h"
 #include "threads/vaddr.h"
 #include "intrinsic.h"
+#include "userprog/syscall.h"
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -46,11 +47,17 @@ process_create_initd (const char *file_name) {
 
 	/* Make a copy of FILE_NAME.
 	 * Otherwise there's a race between the caller and load(). 
+
 	 * 커널에서 페이지 단위로 메모리를 할당하는 palloc_get_page 함수를 호출 */
 	fn_copy = palloc_get_page (0);
 	if (fn_copy == NULL)
 		return TID_ERROR;
+
 	strlcpy (fn_copy, file_name, PGSIZE);
+
+	/* 파일명 분리 */
+	char *save_ptr;
+    strtok_r(file_name, " ", &save_ptr);
 
 	/* Create a new thread to execute FILE_NAME. */
 	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
@@ -223,12 +230,31 @@ int parse_cmdline(char *cmdline, char **argv, int max_arg)
  * does nothing. */
 int
 process_wait (tid_t child_tid UNUSED) {
-	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
-	 * XXX:       to add infinite loop here before
-	 * XXX:       implementing the process_wait. */
-	while(true) { /* 일단 무기한 대기 */
-	}
-	return -1;
+	
+	int status;
+
+	/* 자식 리스트가 비어있는 경우 함수 종료 */
+	if(list_empty(&thread_current()->children))
+		return -1;  			
+
+	/* 자식 스레드 탐색 */
+	struct thread *child = get_child(child_tid);
+	if(child == NULL)
+		return -1;
+	
+	/* 자식 스레드의 wait_sema 상태 확인*/		
+	sema_down(&child->wait_sema);
+
+	/* 자식 스레드 종료 상태 저장 */
+	status = child->exit_status;
+
+	/* 자식 스레드 리스트 정리 */
+	list_remove(&child->c_elem);
+	
+	/* 자식 스레드의 종료 가능 신호 발신 */		
+	sema_up(&child->exit_sema);	
+	
+	return status;
 }
 
 /* Exit the process. This function is called by thread_exit (). */
@@ -346,7 +372,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
  * Returns true if successful, false otherwise. */
 static bool
 load (const char *file_name, struct intr_frame *if_) {
-	#define MAX_ARGC 16		
+	#define MAX_ARGC 32		
 	char *argv[MAX_ARGC + 1];	
 	int argc;
 
