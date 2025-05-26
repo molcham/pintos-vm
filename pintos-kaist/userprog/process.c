@@ -224,12 +224,13 @@ process_exec (void *f_name) {
 	process_cleanup ();		
 	
 	/* And then load the binary */
-	success = load(file_name, &_if);		
-		
-	/* If load failed, quit. */
-	palloc_free_page (file_name);
-	if (!success)
-		return -1;
+	success = load(file_name, &_if);	
+	
+	palloc_free_page (file_name);	
+	
+	/* If load failed, quit. */	
+	if (!success)			
+		sys_exit(-1);	
 
 	/* Start switched process. */
 	do_iret (&_if);
@@ -561,8 +562,7 @@ load (const char *file_name, struct intr_frame *if_) {
 	success = true;	
 
 done:
-	/* We arrive here whether the load is successful or not. */
-	file_close (file);
+	/* We arrive here whether the load is successful or not. */	
 	return success;
 }
 

@@ -10,6 +10,7 @@
 #include "intrinsic.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
+#include "threads/palloc.h"
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
@@ -60,6 +61,10 @@ syscall_handler (struct intr_frame *f) {
 
 		case SYS_FORK:
 			f->R.rax = fork((const char *)f->R.rdi, f);		
+			break;
+
+		case SYS_EXEC:
+			f->R.rax = exec((const char *)f->R.rdi);
 			break;
 
 		case SYS_WAIT:
@@ -162,6 +167,21 @@ tid_t fork(const char *thread_name, struct intr_frame *f)
 	return child_tid;
 }
 
+int exec(const char *cmd_line)
+{
+	/* 파라미터로 전달받은 주소의 유효성 검증 */
+	validate_addr(cmd_line);	
+	
+	/* process_exec에서 초기화되는 cmd_line을 커널 영역에 복사하여 파라미터로 전달 */
+	char *f_name = palloc_get_page(PAL_ZERO | PAL_ASSERT);	
+	size_t size = strlen(cmd_line) + 1;	
+	memcpy(f_name, cmd_line, size);
+
+	process_exec(f_name);
+
+	/* 메모리 해제 */
+	palloc_free_page(f_name);
+}
 
 int wait(tid_t tid)
 {

@@ -52,6 +52,8 @@
         "thread.h": "c",
         "lib.h": "c",
         "stdlib.h": "c",
-        "directory.h": "c"
+        "directory.h": "c",
+        "flags.h": "c",
+        "main.h": "c"
     }
 }

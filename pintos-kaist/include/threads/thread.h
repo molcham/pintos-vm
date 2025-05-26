@@ -103,7 +103,7 @@ struct thread {
 	int exit_status;	                /* 종료 상태 확인 */
 	
 	struct list children;               /* 자식 리스트 */	
-	struct list_elem child_elem;            /* 자식 리스트 요소(본인이 자식일 때) */ 
+	struct list_elem child_elem;        /* 자식 리스트 요소(본인이 자식일 때) */ 
 
 	struct semaphore exit_sema;         /* exit 하기 전 부모 스레드에게 종료 상태 전달 여부 확인을 위한 대기 */ 
 	struct semaphore wait_sema;         /* exit 하기 전 자식 스레드의 종료 상태 확인을 위한 대기 */ 
