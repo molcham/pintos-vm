@@ -58,6 +58,10 @@ syscall_handler (struct intr_frame *f) {
 			sys_exit(f->R.rdi);		
 			break;
 
+		case SYS_FORK:
+			fork((const char *)f->R.rdi, f);		
+			break;
+
 		case SYS_WAIT:
 			wait((tid_t)f->R.rdi);		
 			break;
@@ -118,6 +122,48 @@ void halt(void)
 	return;
 }
 
+void sys_exit (int status) 
+{
+  struct thread *curr = thread_current ();
+  
+  /* 종료 상태 저장 */
+  curr->exit_status = status; 
+
+  printf ("%s: exit(%d)\n", curr->name, status);  
+	
+  thread_exit();    
+}
+
+tid_t fork(const char *thread_name, struct intr_frame *f)
+{
+	/* 파라미터로 전달받은 주소의 유효성 검증 */
+	void validate_addr(const void *thread_name);
+	void validate_addr(const void *f);
+
+	struct thread *curr = thread_current();	
+
+	tid_t child_tid = process_fork(thread_name, f); 
+	
+	/* 자녀 스레드가 생성되지 않았다면 TID_ERROR 반환 */
+	if (child_tid == TID_ERROR)
+		return TID_ERROR;	
+
+	struct thread *child = get_child(child_tid);
+	
+	/* fork 함수 종료 전 자식 스레드가 부모 스레드의 데이터를 온전히 복제했는지 확인하기 위한 대기 */
+	sema_down(&child->load_sema);	
+
+	/* 자녀 스레드가 fork 과정에서 비정상 종료되어 종료 대기 중이라면 깨운 뒤 TID_ERROR 반환 */
+	if(child->exit_status == TID_ERROR)
+	{
+		sema_up(&child->exit_sema);
+		return TID_ERROR;
+	}		
+	
+	return child_tid;
+}
+
+
 int wait(tid_t tid)
 {
 	int status = process_wait(tid);
@@ -140,24 +186,6 @@ bool remove(const char *file) // 추가 구현 필요!
 	return filesys_remove(file);
 }
 
-void sys_exit (int status) 
-{
-  struct thread *curr = thread_current ();
-
-  printf ("%s: exit(%d)\n", curr->name, status);  
-  
-  /* 종료 상태 저장 */
-  curr->exit_status = status; 
-
-  /* 부모에게 작업 종료 안내 */ 
-  sema_up(&curr->wait_sema);
-  
-  /* 부모가 확인할때까지 대기 */ 
-  sema_down(&curr->exit_sema);
-	
-  thread_exit();    
-}
-
 int open(const char *file_name)
 {
 	/* 파라미터 유효성 검증 */
@@ -172,9 +200,11 @@ int open(const char *file_name)
 	if(file_obj == NULL) return -1;	
 
 	/* fdt에 등록 */
-	int fd = curr->next_fd; // 추후 가리키는 file이 없는 번호를 찾는 로직 필요!	
+	int fd = curr->next_fd; 
 	curr->fdt[fd] = file_obj;
-	curr->next_fd++;	
+	
+	/* 다음에 배정할 fd 탐색하여 업데이트 */
+	curr->next_fd = get_next_fd(curr);	
 		
 	return fd;	
 }
@@ -193,7 +223,7 @@ int read(int fd, void *buffer, unsigned size)
 	validate_addr(buffer);	
 
 	/* 파일이 없거나 표준 입력/에러이거나 할당 가능한 fd 이상이면 종료 */
-	if(fd == 0 || fd == 1 || fd > 63)
+	if(fd == 0 || fd == 1 || fd > FD_MAX)
 		sys_exit(-1);
 
 	if(curr->fdt[fd] == NULL)
@@ -245,7 +275,7 @@ void seek(int fd, unsigned position)
 
 unsigned tell(int fd)
 {
-	off_t position = file_tell(&thread_current()->fdt[fd]);	
+	off_t position = file_tell(thread_current()->fdt[fd]);	
 	return position;
 }
 
@@ -254,7 +284,7 @@ void close(int fd)
 	struct thread *curr = thread_current();	
 	
 	/* 파일이 없거나 표준 입력/에러이거나 할당 가능한 fd 이상이면 종료 */
-	if(fd == 0 || fd == 2 || fd > 63)
+	if(fd == 0 || fd == 2 || fd > FD_MAX)
 		sys_exit(-1);
 
 	if(curr->fdt[fd] == NULL)
@@ -277,7 +307,7 @@ struct thread* get_child(tid_t tid)
 	/* 자식 리스트를 순회하며 파라미터로 받은 tid가 있는지 확인 */
 	for(struct list_elem *e = list_begin(&curr->children); e != list_end(&curr->children); e = list_next(e))
 	{
-		struct thread *t = list_entry(e, struct thread, c_elem);
+		struct thread *t = list_entry(e, struct thread, child_elem);
 		if(tid == t->tid)
 			return t;				
 	}
@@ -285,3 +315,18 @@ struct thread* get_child(tid_t tid)
 	return NULL;
 }
 
+int get_next_fd(struct thread *curr)
+{
+	int next_fd;
+
+	for(int i = 3; i < FD_MAX; i++) 
+	{
+		if(curr->fdt[i] == NULL)
+		{
+			next_fd = i;
+			break;
+		}
+	}
+
+	return next_fd;
+}

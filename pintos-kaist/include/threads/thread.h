@@ -29,6 +29,8 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 
+#define FD_MAX 64                       /* FD 테이블 저장 가능한 최대 갯수 */
+
 /* A kernel thread or user process.
  *
  * Each thread structure is stored in its own 4 kB page.  The
@@ -96,15 +98,16 @@ struct thread {
 	struct list donations;              /* 우선순위 donations를 추적하기 위한 리스트 */
 	struct lock *wait_on_lock;          /* 대기 중인 락 */
 	int base_priority;                  /* 기부 이전 우선순위 */	
-	struct file *fdt[64];               /* 파일 디스크립터 테이블 */	
+	struct file *fdt[FD_MAX];           /* 파일 디스크립터 테이블 */	
 	int next_fd;                        /* 다음에 배정할 fd */ 
 	int exit_status;	                /* 종료 상태 확인 */
 	
 	struct list children;               /* 자식 리스트 */	
-	struct list_elem c_elem;            /* 자식 리스트 요소(본인이 자식일 때) */ 
+	struct list_elem child_elem;            /* 자식 리스트 요소(본인이 자식일 때) */ 
 
-	struct semaphore exit_sema;         /* exit 하기 전 부모에게 상태 전달 여부 확인 */ 
-	struct semaphore wait_sema;         /* exit 하기 전 자식 상태 확인 */ 
+	struct semaphore exit_sema;         /* exit 하기 전 부모 스레드에게 종료 상태 전달 여부 확인을 위한 대기 */ 
+	struct semaphore wait_sema;         /* exit 하기 전 자식 스레드의 종료 상태 확인을 위한 대기 */ 
+	struct semaphore load_sema;         /* 자녀 스레드 생성 직후 __do_fork 성공 여부 확인을 위한 대기 */ 
 
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* sleep, ready List element. */
@@ -121,6 +124,7 @@ struct thread {
 
 	/* Owned by thread.c. */
 	struct intr_frame tf;               /* Information for switching */
+	struct intr_frame backup_tf;        /* fork 호출 시 유저 스택의 레지스터 값 백업용 */
 	unsigned magic;                     /* Detects stack overflow. */
 };
 

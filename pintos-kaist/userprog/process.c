@@ -83,10 +83,15 @@ initd (void *f_name) {
 /* Clones the current process as `name`. Returns the new process's thread id, or
  * TID_ERROR if the thread cannot be created. */
 tid_t
-process_fork (const char *name, struct intr_frame *if_ UNUSED) {
-	/* Clone current thread to new thread.*/
-	return thread_create (name,
-			PRI_DEFAULT, __do_fork, thread_current ());
+process_fork (const char *name, struct intr_frame *if_) {
+	
+	struct thread *curr = thread_current();
+
+	/* syscall handler에서 전달받은 커널 스택의 인터럽트 프레임 데이터(유저 프로그램 정보)를 스레드의 내장 프레임에 복사 */
+	memcpy (&curr->backup_tf, if_, sizeof(struct intr_frame));
+	
+	/* 스레드를 생성한 뒤 __do_fork 실행 (부모 스레드 주소를 파라미터로 전달) */
+	return thread_create (name, PRI_DEFAULT, __do_fork, curr);	
 }
 
 #ifndef VM
@@ -101,21 +106,33 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 	bool writable;
 
 	/* 1. TODO: If the parent_page is kernel page, then return immediately. */
+	if(is_kernel_vaddr(va))
+		return true;
 
 	/* 2. Resolve VA from the parent's page map level 4. */
 	parent_page = pml4_get_page (parent->pml4, va);
+	if(parent_page == NULL)
+		return true;
 
 	/* 3. TODO: Allocate new PAL_USER page for the child and set result to
 	 *    TODO: NEWPAGE. */
+	newpage = palloc_get_page(PAL_USER | PAL_ZERO);
+	if(newpage == NULL)
+		return false;
 
 	/* 4. TODO: Duplicate parent's page to the new page and
 	 *    TODO: check whether parent's page is writable or not (set WRITABLE
 	 *    TODO: according to the result). */
+	memcpy(newpage, parent_page, PGSIZE);
+	writable = is_writable(pte);
 
 	/* 5. Add new page to child's page table at address VA with WRITABLE
 	 *    permission. */
 	if (!pml4_set_page (current->pml4, va, newpage, writable)) {
+		
 		/* 6. TODO: if fail to insert page, do error handling. */
+		palloc_free_page(newpage);
+		return false;
 	}
 	return true;
 }
@@ -126,23 +143,22 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
  *       That is, you are required to pass second argument of process_fork to
  *       this function. */
 static void
-__do_fork (void *aux) {
-	struct intr_frame if_;
+__do_fork (void *aux) {	
 	struct thread *parent = (struct thread *) aux;
-	struct thread *current = thread_current ();
-	/* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
-	struct intr_frame *parent_if;
+	struct thread *curr = thread_current ();	
+	struct intr_frame *parent_if = &parent->backup_tf;
+	struct intr_frame if_;
 	bool succ = true;
 
 	/* 1. Read the cpu context to local stack. */
 	memcpy (&if_, parent_if, sizeof (struct intr_frame));
 
 	/* 2. Duplicate PT */
-	current->pml4 = pml4_create();
-	if (current->pml4 == NULL)
+	curr->pml4 = pml4_create();
+	if (curr->pml4 == NULL)
 		goto error;
 
-	process_activate (current);
+	process_activate (curr);
 #ifdef VM
 	supplemental_page_table_init (&current->spt);
 	if (!supplemental_page_table_copy (&current->spt, &parent->spt))
@@ -157,14 +173,32 @@ __do_fork (void *aux) {
 	 * TODO:       in include/filesys/file.h. Note that parent should not return
 	 * TODO:       from the fork() until this function successfully duplicates
 	 * TODO:       the resources of parent.*/
+	
+	/* 부모 스레드의 FDT를 순회하며 파일을 복사 후 자녀 스레드의 FDT에 저장 */
+	for(int i = 3; i < FD_MAX; i++)
+	{
+		struct file *file = file_duplicate(parent->fdt[i]);
+		
+		if(file == NULL)
+			break;
+		
+		curr->fdt[i] = file;
+	}
 
-	process_init ();
+	/* 부모 스레드의 next_fd 값 복사 */
+	curr->next_fd = parent->next_fd;
+
+	/* 부모 스레드의 데이터 복제 후 부모 스레드 block 해제 */
+	sema_up(&curr->load_sema);
+
+	process_init ();	
 
 	/* Finally, switch to the newly created process. */
 	if (succ)
 		do_iret (&if_);
 error:
-	thread_exit ();
+	sema_up(&curr->load_sema);
+	sys_exit(TID_ERROR);
 }
 
 /* Switch the current execution context to the f_name.
@@ -249,7 +283,7 @@ process_wait (tid_t child_tid UNUSED) {
 	status = child->exit_status;
 
 	/* 자식 스레드 리스트 정리 */
-	list_remove(&child->c_elem);
+	list_remove(&child->child_elem);
 	
 	/* 자식 스레드의 종료 가능 신호 발신 */		
 	sema_up(&child->exit_sema);	
@@ -265,6 +299,12 @@ process_exit (void) {
 	 * TODO: Implement process termination message (see
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
+
+	/* 부모에게 작업 종료 안내 */ 
+	sema_up(&curr->wait_sema);
+	
+	/* 부모가 확인할때까지 대기 */ 
+	sema_down(&curr->exit_sema);
 
 	process_cleanup ();
 }

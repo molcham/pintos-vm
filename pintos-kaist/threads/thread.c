@@ -217,7 +217,7 @@ thread_create (const char *name, int priority,
 	t->tf.cs = SEL_KCSEG;                   // 코드 세그먼트
 	t->tf.eflags = FLAG_IF;                 // 인터럽트 플래그 설정
 	
-	list_push_back(&thread_current()->children, &t->c_elem);  // 부모의 자식 리스트에 삽입
+	list_push_back(&thread_current()->children, &t->child_elem);  // 부모의 자식 리스트에 삽입
 
 	/* 스레드를 READY 상태로 전환하고 ready_list에 삽입 */
 	thread_unblock (t);
@@ -683,6 +683,7 @@ init_thread (struct thread *t, const char *name, int priority) {
 
 	sema_init(&t->wait_sema, 0); /* wait_sema 초기화 */
 	sema_init(&t->exit_sema, 0); /* exit_sema 초기화 */
+	sema_init(&t->load_sema, 0); /* load_sema 초기화 */
 	
 	list_init(&t->children); /* 자식 리스트 초기화 */	
 	list_init(&t->donations); /* donation 리스트 초기화 */	
