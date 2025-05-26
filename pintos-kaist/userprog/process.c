@@ -174,15 +174,14 @@ __do_fork (void *aux) {
 	 * TODO:       from the fork() until this function successfully duplicates
 	 * TODO:       the resources of parent.*/
 	
-	/* 부모 스레드의 FDT를 순회하며 파일을 복사 후 자녀 스레드의 FDT에 저장 */
+	/* 부모 스레드의 FDT를 순회하며 파일을 복사 후 자녀 스레드의 FDT에 저장 */	
 	for(int i = 3; i < FD_MAX; i++)
 	{
-		struct file *file = file_duplicate(parent->fdt[i]);
-		
-		if(file == NULL)
-			break;
-		
-		curr->fdt[i] = file;
+		if(parent->fdt[i] != NULL)		
+		{
+			struct file *file = file_duplicate(parent->fdt[i]);						
+			curr->fdt[i] = file;
+		}
 	}
 
 	/* 부모 스레드의 next_fd 값 복사 */
@@ -195,7 +194,10 @@ __do_fork (void *aux) {
 
 	/* Finally, switch to the newly created process. */
 	if (succ)
+	{
+		if_.R.rax = 0;
 		do_iret (&if_);
+	}
 error:
 	sema_up(&curr->load_sema);
 	sys_exit(TID_ERROR);
