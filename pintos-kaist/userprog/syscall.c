@@ -59,11 +59,11 @@ syscall_handler (struct intr_frame *f) {
 			break;
 
 		case SYS_FORK:
-			fork((const char *)f->R.rdi, f);		
+			f->R.rax = fork((const char *)f->R.rdi, f);		
 			break;
 
 		case SYS_WAIT:
-			wait((tid_t)f->R.rdi);		
+			f->R.rax = wait((tid_t)f->R.rdi);		
 			break;
 		
 		case SYS_CREATE: 		
@@ -137,8 +137,7 @@ void sys_exit (int status)
 tid_t fork(const char *thread_name, struct intr_frame *f)
 {
 	/* 파라미터로 전달받은 주소의 유효성 검증 */
-	void validate_addr(const void *thread_name);
-	void validate_addr(const void *f);
+	validate_addr(thread_name);	
 
 	struct thread *curr = thread_current();	
 
