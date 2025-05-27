@@ -40,13 +40,17 @@ syscall_init (void) {
 	 * mode stack. Therefore, we masked the FLAG_FL. */
 	write_msr(MSR_SYSCALL_MASK,
 			FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);	
+
+	lock_init(&filesys_lock); /* 파일입출력 lock 초기화 */	
 }
 
 
 void
-syscall_handler (struct intr_frame *f) {	
+syscall_handler (struct intr_frame *f) {		
 
-	lock_init(filesys_lock); /* 파일입출력 lock 초기화 */	
+	int code = f->R.rax;
+	int num = f->R.rdi;
+	int tid = thread_current()->tid;
 
 	switch (f->R.rax)
 	{
@@ -193,11 +197,11 @@ bool create(const char *file, unsigned initial_size)
 	/* 파라미터 유효성 검증 */
 	validate_addr(file);
 
-	lock_acquire(filesys_lock);
+	lock_acquire(&filesys_lock);
 
 	bool result = filesys_create(file, initial_size);	
 
-	lock_release(filesys_lock);
+	lock_release(&filesys_lock);
 
 	return result;
 }
@@ -220,11 +224,12 @@ int open(const char *file_name)
 	
 	struct thread *curr = thread_current();		
 
-	lock_acquire(filesys_lock);
+	lock_acquire(&filesys_lock);
 
 	/* 파일명과 경로 전달한 뒤 file 획득 */
 	struct file *file_obj = filesys_open(file_name);
-	if(file_obj == NULL) return -1;	
+	if(file_obj == NULL) 
+		return -1;	
 
 	/* fdt에 등록 */
 	int fd = curr->next_fd; 
@@ -233,7 +238,7 @@ int open(const char *file_name)
 	/* 다음에 배정할 fd 탐색하여 업데이트 */
 	curr->next_fd = get_next_fd(curr);	
 
-	lock_release(filesys_lock);
+	lock_release(&filesys_lock);
 		
 	return fd;	
 }
@@ -264,12 +269,12 @@ int read(int fd, void *buffer, unsigned size)
 	if(filesize(fd) < size)
 		size = filesize(fd);
 
-	lock_acquire(filesys_lock);
+	lock_acquire(&filesys_lock);
 	
 	/* file_read를 호출하여 실제 읽은 바이트 수를 획득 */
 	off_t bytes_read = file_read(file, buffer, (off_t)size);
 
-	lock_release(filesys_lock);
+	lock_release(&filesys_lock);
 
 	return (int)bytes_read;
 }
@@ -289,14 +294,14 @@ int write(int fd, const void *buffer, unsigned size)
 	/* 실행 중인 스레드의 fd_table을 확인하여 fd에 매핑되는 file 정의 */		
 	else if(fd > 2 && fd < 64)
 	{		
-		lock_acquire(filesys_lock);
+		lock_acquire(&filesys_lock);
 
 		struct file *file = thread_current()->fdt[fd];
 
 		/* file_write를 호출하여 실제 쓴 바이트 수를 획득 */
 		off_t bytes_written = file_write(file, buffer, size);
 
-		lock_release(filesys_lock);
+		lock_release(&filesys_lock);
 		
 		return bytes_written;
 	}	

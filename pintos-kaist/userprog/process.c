@@ -309,6 +309,9 @@ process_exit (void) {
 	/* 부모가 확인할때까지 대기 */ 
 	sema_down(&curr->exit_sema);
 
+	/* 실행 중인 file 닫기 */
+	file_close(curr->running);	
+
 	process_cleanup ();
 }
 
@@ -424,7 +427,6 @@ load (const char *file_name, struct intr_frame *if_) {
 	struct file *file = NULL;
 	off_t file_ofs;
 	bool success = false;
-	int i;	
 
 	/* file_name을 띄어쓰기 단위로 파싱하여 argv 배열에 순차적으로 삽입 */
 	argc = parse_cmdline(file_name, argv, MAX_ARGC);
@@ -458,7 +460,7 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	/* Read program headers. */
 	file_ofs = ehdr.e_phoff;
-	for (i = 0; i < ehdr.e_phnum; i++) {
+	for (int i = 0; i < ehdr.e_phnum; i++) {
 		struct Phdr phdr;
 
 		if (file_ofs < 0 || file_ofs > file_length (file))
@@ -560,10 +562,12 @@ load (const char *file_name, struct intr_frame *if_) {
 	if_->rsp   = (uintptr_t) rsp;
 	
 	success = true;	
+	
+	t->running = file;
+	file_deny_write(file);
 
 done:
-	/* We arrive here whether the load is successful or not. */	
-	file_deny_write(file);
+	/* We arrive here whether the load is successful or not. */		
 	return success;
 }
 
