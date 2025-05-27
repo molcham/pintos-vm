@@ -54,6 +54,7 @@
         "stdlib.h": "c",
         "directory.h": "c",
         "flags.h": "c",
-        "main.h": "c"
+        "main.h": "c",
+        "stdbool.h": "c"
     }
 }

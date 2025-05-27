@@ -101,6 +101,7 @@ struct thread {
 	struct file *fdt[FD_MAX];           /* 파일 디스크립터 테이블 */	
 	int next_fd;                        /* 다음에 배정할 fd */ 
 	int exit_status;	                /* 종료 상태 확인 */
+	struct file *running;               /* 실행 중 파일 */
 	
 	struct list children;               /* 자식 리스트 */	
 	struct list_elem child_elem;        /* 자식 리스트 요소(본인이 자식일 때) */ 
