@@ -2,6 +2,7 @@
 #include <debug.h>
 #include "filesys/inode.h"
 #include "threads/malloc.h"
+#include "userprog/syscall.h"
 
 /* An open file. */
 struct file {
@@ -56,6 +57,9 @@ file_close (struct file *file) {
 		inode_close (file->inode);
 		free (file);
 	}
+
+	struct thread *curr = thread_current();
+	curr->next_fd = get_next_fd(curr);	
 }
 
 /* Returns the inode encapsulated by FILE. */
