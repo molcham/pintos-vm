@@ -229,14 +229,24 @@ int open(const char *file_name)
 	/* 파일명과 경로 전달한 뒤 file 획득 */
 	struct file *file_obj = filesys_open(file_name);
 	if(file_obj == NULL) 
+	{
+		lock_release(&filesys_lock);
 		return -1;	
+	}		
+
+	/* 할당할 fd가 없다면 에러 반환 */
+	if(curr->next_fd == -1)
+	{
+		lock_release(&filesys_lock);
+		return -1;			
+	}
 
 	/* fdt에 등록 */
 	int fd = curr->next_fd; 
 	curr->fdt[fd] = file_obj;
 	
 	/* 다음에 배정할 fd 탐색하여 업데이트 */
-	curr->next_fd = get_next_fd(curr);	
+	curr->next_fd = get_next_fd(curr);		
 
 	lock_release(&filesys_lock);
 		
@@ -366,9 +376,9 @@ int get_next_fd(struct thread *curr)
 		if(curr->fdt[i] == NULL)
 		{
 			next_fd = i;
-			break;
+			return next_fd;
 		}
 	}
 
-	return next_fd;
+	return -1;	
 }
