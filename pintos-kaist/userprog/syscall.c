@@ -238,6 +238,7 @@ int open(const char *file_name)
 	if(curr->next_fd == -1)
 	{
 		lock_release(&filesys_lock);
+		file_close(file_obj);
 		return -1;			
 	}
 
