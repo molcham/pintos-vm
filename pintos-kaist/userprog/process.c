@@ -303,14 +303,14 @@ process_exit (void) {
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
 
-	/* 부모에게 작업 종료 안내 */ 
+	/* 실행 중인 file 닫기 */
+	file_close(curr->running);	
+	
+	 /* 부모에게 작업 종료 안내 */ 
 	sema_up(&curr->wait_sema);
 	
 	/* 부모가 확인할때까지 대기 */ 
 	sema_down(&curr->exit_sema);
-
-	/* 실행 중인 file 닫기 */
-	file_close(curr->running);	
 
 	process_cleanup ();
 }
@@ -510,6 +510,10 @@ load (const char *file_name, struct intr_frame *if_) {
 				break;
 		}
 	}
+		
+	/* 실행 파일 수정 금지 설정 */
+	t->running = file;
+	file_deny_write(file);
 
 	/* Set up stack. */
 	if (!setup_stack (if_))
@@ -552,9 +556,7 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	/* fake address(0) 넣기 */
 	rsp -= sizeof(void *);
-	*(void **)rsp = 0; 	
-
-	//hex_dump((void*)rsp, rsp, 64, true);
+	*(void **)rsp = 0; 		
 
 	/* 인터럽트 프레임의 레지스터 값 최신화 */	
 	if_->R.rdi = argc;
@@ -562,9 +564,6 @@ load (const char *file_name, struct intr_frame *if_) {
 	if_->rsp   = (uintptr_t) rsp;
 	
 	success = true;	
-	
-	t->running = file;
-	file_deny_write(file);
 
 done:
 	/* We arrive here whether the load is successful or not. */		
