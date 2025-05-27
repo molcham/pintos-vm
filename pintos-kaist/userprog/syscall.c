@@ -152,7 +152,7 @@ tid_t fork(const char *thread_name, struct intr_frame *f)
 	tid_t child_tid = process_fork(thread_name, f); 
 	
 	/* 자녀 스레드가 생성되지 않았다면 TID_ERROR 반환 */
-	if (child_tid == TID_ERROR)
+	if (child_tid == TID_ERROR)		
 		return TID_ERROR;	
 
 	struct thread *child = get_child(child_tid);

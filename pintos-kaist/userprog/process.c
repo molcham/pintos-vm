@@ -305,6 +305,14 @@ process_exit (void) {
 
 	/* 실행 중인 file 닫기 */
 	file_close(curr->running);	
+
+	/* fdt에 등록된 file 닫기 */
+	for(int i = 3; i < FD_MAX; i++)
+	{
+		if(curr->fdt[i] != NULL)
+			file_close(curr->fdt[i]);
+			curr->fdt[i] = NULL;
+	}
 	
 	 /* 부모에게 작업 종료 안내 */ 
 	sema_up(&curr->wait_sema);
