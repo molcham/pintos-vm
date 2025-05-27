@@ -11,6 +11,7 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "threads/palloc.h"
+#include "threads/vaddr.h"
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
@@ -118,10 +119,8 @@ syscall_handler (struct intr_frame *f) {
 /* 파라미터로 전달받은 주소의 유효성 검증 */
 void validate_addr(const void *addr)
 {
-	if(addr == NULL)
-		return sys_exit(-1);	
-	if((pml4_get_page(thread_current()->pml4, addr)) == NULL)
-		return sys_exit(-1);		
+	if (addr == NULL || !is_user_vaddr (addr) || pml4_get_page (thread_current ()->pml4, addr) == NULL)
+		sys_exit (-1);
 }
 
 void halt(void)
