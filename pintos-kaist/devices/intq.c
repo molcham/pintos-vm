@@ -6,7 +6,7 @@ static int next (int pos);
 static void wait (struct intq *q, struct thread **waiter);
 static void signal (struct intq *q, struct thread **waiter);
 
-/* Initializes interrupt queue Q. */
+/* 인터럽트 큐 Q를 초기화한다. */
 void
 intq_init (struct intq *q) {
 	lock_init (&q->lock);
@@ -14,24 +14,23 @@ intq_init (struct intq *q) {
 	q->head = q->tail = 0;
 }
 
-/* Returns true if Q is empty, false otherwise. */
+/* Q가 비어 있으면 true, 아니면 false 를 반환한다. */
 bool
 intq_empty (const struct intq *q) {
 	ASSERT (intr_get_level () == INTR_OFF);
 	return q->head == q->tail;
 }
 
-/* Returns true if Q is full, false otherwise. */
+/* Q가 가득 차 있으면 true, 아니면 false 를 반환한다. */
 bool
 intq_full (const struct intq *q) {
 	ASSERT (intr_get_level () == INTR_OFF);
 	return next (q->head) == q->tail;
 }
 
-/* Removes a byte from Q and returns it.
-   Q must not be empty if called from an interrupt handler.
-   Otherwise, if Q is empty, first sleeps until a byte is
-   added. */
+/* Q에서 바이트 하나를 꺼내 반환한다.
+   인터럽트 핸들러에서 호출할 경우 Q가 비어 있지 않아야 한다.
+   그 외에는 Q가 비어 있으면 데이터가 채워질 때까지 잠든다. */
 uint8_t
 intq_getc (struct intq *q) {
 	uint8_t byte;
@@ -50,10 +49,9 @@ intq_getc (struct intq *q) {
 	return byte;
 }
 
-/* Adds BYTE to the end of Q.
-   Q must not be full if called from an interrupt handler.
-   Otherwise, if Q is full, first sleeps until a byte is
-   removed. */
+/* Q의 끝에 BYTE를 추가한다.
+   인터럽트 핸들러에서 호출한다면 Q가 가득 차 있지 않아야 한다.
+   그 외에는 Q가 가득 차면 공간이 날 때까지 잠든다. */
 void
 intq_putc (struct intq *q, uint8_t byte) {
 	ASSERT (intr_get_level () == INTR_OFF);
@@ -69,14 +67,14 @@ intq_putc (struct intq *q, uint8_t byte) {
 	signal (q, &q->not_empty);
 }
 
-/* Returns the position after POS within an intq. */
+/* POS 바로 다음 위치를 반환한다. */
 static int
 next (int pos) {
 	return (pos + 1) % INTQ_BUFSIZE;
 }
 
-/* WAITER must be the address of Q's not_empty or not_full
-   member.  Waits until the given condition is true. */
+/* WAITER는 Q의 not_empty 또는 not_full 멤버 주소여야 하며
+   해당 조건이 만족될 때까지 기다린다. */
 static void
 wait (struct intq *q UNUSED, struct thread **waiter) {
 	ASSERT (!intr_context ());
@@ -88,10 +86,8 @@ wait (struct intq *q UNUSED, struct thread **waiter) {
 	thread_block ();
 }
 
-/* WAITER must be the address of Q's not_empty or not_full
-   member, and the associated condition must be true.  If a
-   thread is waiting for the condition, wakes it up and resets
-   the waiting thread. */
+/* WAITER는 Q의 not_empty 또는 not_full 멤버 주소이며 조건이 참일 때 호출된다.
+   대기 중인 스레드가 있다면 깨우고 그 포인터를 초기화한다. */
 static void
 signal (struct intq *q UNUSED, struct thread **waiter) {
 	ASSERT (intr_get_level () == INTR_OFF);

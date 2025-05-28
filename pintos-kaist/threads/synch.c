@@ -33,15 +33,12 @@
    #include "threads/thread.h"   
    bool cmp_sema_priority(struct list_elem *a, struct list_elem *b, void *aux);
    
-   /* Initializes semaphore SEMA to VALUE.  A semaphore is a
-	  nonnegative integer along with two atomic operators for
-	  manipulating it:
-   
-	  - down or "P": wait for the value to become positive, then
-	  decrement it.
-   
-	  - up or "V": increment the value (and wake up one waiting
-	  thread, if any). */
+   /* 세마포어 SEMA를 VALUE 값으로 초기화한다.
+          세마포어는 음수가 될 수 없는 정수 값과 다음 두 연산으로 구성된다:
+
+          - down 또는 "P": 값이 양수가 될 때까지 기다린 뒤 1 감소한다.
+
+          - up 또는 "V": 값을 증가시키고 대기 중인 스레드가 있으면 한 개를 깨운다. */
    void
    sema_init (struct semaphore *sema, unsigned value) {
 	   ASSERT (sema != NULL);
@@ -50,14 +47,12 @@
 	   list_init (&sema->waiters);
    }
    
-   /* Down or "P" operation on a semaphore.  Waits for SEMA's value
-	  to become positive and then atomically decrements it.
-   
-	  This function may sleep, so it must not be called within an
-	  interrupt handler.  This function may be called with
-	  interrupts disabled, but if it sleeps then the next scheduled
-	  thread will probably turn interrupts back on. This is
-	  sema_down function. */
+   /* 세마포어를 감소시키는 down(P) 연산.
+          값이 양수가 될 때까지 기다렸다가 원자적으로 1 줄인다.
+
+          이 함수는 슬립할 수 있으므로 인터럽트 핸들러 안에서는 호출하면 안 된다.
+          인터럽트를 끈 상태로 호출할 수는 있지만, 잠들었다 깨어나면
+          다음 스케줄된 스레드가 인터럽트를 다시 켤 수도 있다. */
    void
    sema_down (struct semaphore *sema) {
 	   enum intr_level old_level;

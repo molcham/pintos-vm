@@ -9,32 +9,22 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 
-/* A simple implementation of malloc().
+/* 간단한 malloc() 구현.
 
-   The size of each request, in bytes, is rounded up to a power
-   of 2 and assigned to the "descriptor" that manages blocks of
-   that size.  The descriptor keeps a list of free blocks.  If
-   the free list is nonempty, one of its blocks is used to
-   satisfy the request.
+   요청 크기는 2의 거듭제곱으로 올림해 "descriptor"에 배정된다.
+   디스크립터는 여유 블록 목록을 관리하며, 목록이 비어 있지 않으면
+   그중 하나를 사용한다.
 
-   Otherwise, a new page of memory, called an "arena", is
-   obtained from the page allocator (if none is available,
-   malloc() returns a null pointer).  The new arena is divided
-   into blocks, all of which are added to the descriptor's free
-   list.  Then we return one of the new blocks.
+   빈 목록이면 새로운 "arena" 페이지를 할당받아 여러 블록으로 나눈 후
+   해당 디스크립터의 목록에 추가한 뒤 하나를 반환한다.
 
-   When we free a block, we add it to its descriptor's free list.
-   But if the arena that the block was in now has no in-use
-   blocks, we remove all of the arena's blocks from the free list
-   and give the arena back to the page allocator.
+   블록을 해제할 때는 다시 목록에 넣고, 해당 arena에 남은 블록이 없다면
+   arena 전체를 페이지 할당자로 돌려준다.
 
-   We can't handle blocks bigger than 2 kB using this scheme,
-   because they're too big to fit in a single page with a
-   descriptor.  We handle those by allocating contiguous pages
-   with the page allocator and sticking the allocation size at
-   the beginning of the allocated block's arena header. */
+   이 방식으로는 2kB보다 큰 블록을 처리할 수 없으므로, 그런 경우에는
+   연속된 페이지를 직접 할당하고 크기를 헤더에 기록해 둔다. */
 
-/* Descriptor. */
+/* 할당 블록을 관리하는 디스크립터 구조체 */
 struct desc {
 	size_t block_size;          /* Size of each element in bytes. */
 	size_t blocks_per_arena;    /* Number of blocks in an arena. */
@@ -42,22 +32,22 @@ struct desc {
 	struct lock lock;           /* Lock. */
 };
 
-/* Magic number for detecting arena corruption. */
+/* arena 손상 여부를 확인하기 위한 매직 넘버 */
 #define ARENA_MAGIC 0x9a548eed
 
-/* Arena. */
+/* 여러 블록을 포함하는 메모리 영역, arena */
 struct arena {
 	unsigned magic;             /* Always set to ARENA_MAGIC. */
 	struct desc *desc;          /* Owning descriptor, null for big block. */
 	size_t free_cnt;            /* Free blocks; pages in big block. */
 };
 
-/* Free block. */
+/* 빈 블록을 표현 */
 struct block {
 	struct list_elem free_elem; /* Free list element. */
 };
 
-/* Our set of descriptors. */
+/* 디스크립터 테이블 */
 static struct desc descs[10];   /* Descriptors. */
 static size_t desc_cnt;         /* Number of descriptors. */
 

@@ -38,15 +38,15 @@
 #include "filesys/fsutil.h"
 #endif
 
-/* Page-map-level-4 with kernel mappings only. */
+/* 커널 매핑만 포함한 PML4 */
 uint64_t *base_pml4;
 
 #ifdef FILESYS
-/* -f: Format the file system? */
+/* -f: 파일 시스템을 포맷할지? */
 static bool format_filesys;
 #endif
 
-/* -q: Power off after kernel tasks complete? */
+/* -q: 커널 작업이 끝나면 전원 종료할지? */
 bool power_off_when_done;
 
 bool thread_tests;
@@ -64,14 +64,14 @@ static void print_stats (void);
 
 int main (void) NO_RETURN;
 
-/* Pintos main program. */
+/* Pintos 메인 프로그램 */
 int
 main (void) {
 	uint64_t mem_end;
 	char **argv;
 
-	/* Clear BSS and get machine's RAM size. */
-	bss_init ();
+        /* BSS를 초기화하고 RAM 크기를 얻는다. */
+        bss_init ();
 
 	/* Break command line into arguments and parse options. */
 	argv = read_command_line ();
@@ -127,22 +127,22 @@ main (void) {
 	thread_exit ();
 }
 
-/* Clear BSS */
+/* BSS 초기화 */
 static void
 bss_init (void) {
-	/* The "BSS" is a segment that should be initialized to zeros.
-	   It isn't actually stored on disk or zeroed by the kernel
-	   loader, so we have to zero it ourselves.
+        /* "BSS" 영역은 0으로 초기화되어야 하는 구간이다.
+           실제로는 디스크에 저장되지도, 커널 로더가 지워 주지도 않으므로
+           여기서 직접 메모리를 0으로 채운다.
 
-	   The start and end of the BSS segment is recorded by the
-	   linker as _start_bss and _end_bss.  See kernel.lds. */
+           BSS 영역의 시작과 끝 주소는 링커가 _start_bss 와 _end_bss 로 기록한다.
+           자세한 내용은 kernel.lds를 참고. */
 	extern char _start_bss, _end_bss;
 	memset (&_start_bss, 0, &_end_bss - &_start_bss);
 }
 
-/* Populates the page table with the kernel virtual mapping,
- * and then sets up the CPU to use the new page directory.
- * Points base_pml4 to the pml4 it creates. */
+/* 커널 가상 주소에 대한 매핑을 페이지 테이블에 채운 뒤
+ * 새 페이지 디렉터리를 사용하도록 CPU를 설정한다.
+ * 생성된 pml4의 주소는 base_pml4에 기록된다. */
 static void
 paging_init (uint64_t mem_end) {
 	uint64_t *pml4, *pte;
