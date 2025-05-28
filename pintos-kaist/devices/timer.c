@@ -8,7 +8,7 @@
 #include "threads/synch.h"
 #include "threads/thread.h"
 
-/* See [8254] for hardware details of the 8254 timer chip. */
+/* 8254 타이머 칩의 세부 사항은 [8254]를 참고한다. */
 
 #if TIMER_FREQ < 19
 #error 8254 timer requires TIMER_FREQ >= 19
@@ -17,11 +17,11 @@
 #error TIMER_FREQ <= 1000 recommended
 #endif
 
-/* Number of timer ticks since OS booted. */
+/* OS 부팅 이후 지난 타이머 틱 수. */
 static int64_t ticks;
 
-/* Number of loops per timer tick.
-   Initialized by timer_calibrate(). */
+/* 한 틱당 반복할 루프 횟수.
+   timer_calibrate()에서 초기화된다. */
 static unsigned loops_per_tick;
 
 static intr_handler_func timer_interrupt;
@@ -29,13 +29,11 @@ static bool too_many_loops (unsigned loops);
 static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 
-/* Sets up the 8254 Programmable Interval Timer (PIT) to
-   interrupt PIT_FREQ times per second, and registers the
-   corresponding interrupt. */
+/* 8254 PIT을 설정하여 초당 PIT_FREQ회 인터럽트를 발생시키고
+   해당 인터럽트를 등록한다. */
 void
 timer_init (void) {
-	/* 8254 input frequency divided by TIMER_FREQ, rounded to
-	   nearest. */
+        /* 8254 입력 주파수를 TIMER_FREQ로 나눠 반올림한 값. */
 	uint16_t count = (1193180 + TIMER_FREQ / 2) / TIMER_FREQ;
 
 	outb (0x43, 0x34);    /* CW: counter 0, LSB then MSB, mode 2, binary. */
@@ -45,7 +43,7 @@ timer_init (void) {
 	intr_register_ext (0x20, timer_interrupt, "8254 Timer");
 }
 
-/* Calibrates loops_per_tick, used to implement brief delays. */
+/* 짧은 지연을 위해 사용되는 loops_per_tick 값을 보정한다. */
 void
 timer_calibrate (void) {
 	unsigned high_bit, test_bit;
@@ -53,15 +51,14 @@ timer_calibrate (void) {
 	ASSERT (intr_get_level () == INTR_ON);
 	printf ("Calibrating timer...  ");
 
-	/* Approximate loops_per_tick as the largest power-of-two
-	   still less than one timer tick. */
+        /* 한 틱보다 작은 최대 2의 거듭제곱 값으로 먼저 추정한다. */
 	loops_per_tick = 1u << 10;
 	while (!too_many_loops (loops_per_tick << 1)) {
 		loops_per_tick <<= 1;
 		ASSERT (loops_per_tick != 0);
 	}
 
-	/* Refine the next 8 bits of loops_per_tick. */
+        /* 다음 8비트를 더 정밀하게 계산한다. */
 	high_bit = loops_per_tick;
 	for (test_bit = high_bit >> 1; test_bit != high_bit >> 10; test_bit >>= 1)
 		if (!too_many_loops (high_bit | test_bit))
@@ -93,8 +90,8 @@ timer_ticks (void) {
 	return t;                                   // 현재까지의 tick 수 반환
 }
 
-/* Returns the number of timer ticks elapsed since THEN, which
-   should be a value once returned by timer_ticks(). */
+/* 인자로 주어진 THEN 이후 경과한 틱 수를 반환한다.
+   THEN은 timer_ticks()의 반환값이어야 한다. */
 int64_t
 timer_elapsed (int64_t then) {
 	return timer_ticks () - then;
@@ -150,25 +147,25 @@ timer_sleep (int64_t ticks)
 		thread_yield();  // sleep_list에 등록되지 않으므로 깨어날 수 없음 */
 }
 
-/* Suspends execution for approximately MS milliseconds. */
+/* 약 MS 밀리초 동안 실행을 중단한다. */
 void
 timer_msleep (int64_t ms) {
 	real_time_sleep (ms, 1000);
 }
 
-/* Suspends execution for approximately US microseconds. */
+/* 약 US 마이크로초 동안 실행을 중단한다. */
 void
 timer_usleep (int64_t us) {
 	real_time_sleep (us, 1000 * 1000);
 }
 
-/* Suspends execution for approximately NS nanoseconds. */
+/* 약 NS 나노초 동안 실행을 중단한다. */
 void
 timer_nsleep (int64_t ns) {
 	real_time_sleep (ns, 1000 * 1000 * 1000);
 }
 
-/* Prints timer statistics. */
+/* 타이머 통계를 출력한다. */
 void
 timer_print_stats (void) {
 	printf ("Timer: %"PRId64" ticks\n", timer_ticks ());
@@ -209,8 +206,8 @@ timer_interrupt (struct intr_frame *args UNUSED)
 		thread_awake(ticks);		// → 깨어날 시간이 도래한 스레드가 존재할 수 있으므로 thread_awake() 호출
 }
 
-/* Returns true if LOOPS iterations waits for morcde than one timer
-   tick, otherwise false. */
+/* LOOPS번 반복이 한 틱 이상 걸리면 true,
+   그렇지 않으면 false를 반환한다. */
 static bool
 too_many_loops (unsigned loops) {
 	/* Wait for a timer tick. */
@@ -227,40 +224,33 @@ too_many_loops (unsigned loops) {
 	return start != ticks;
 }
 
-/* Iterates through a simple loop LOOPS times, for implementing
-   brief delays.
+/* 간단한 루프를 LOOPS번 돌려 짧은 지연을 구현한다.
 
-   Marked NO_INLINE because code alignment can significantly
-   affect timings, so that if this function was inlined
-   differently in different places the results would be difficult
-   to predict. */
+   코드 정렬에 따라 시간이 달라질 수 있으므로
+   여러 곳에 인라인될 때 예측이 어렵지 않도록 NO_INLINE으로 둔다. */
 static void NO_INLINE
 busy_wait (int64_t loops) {
 	while (loops-- > 0)
 		barrier ();
 }
 
-/* Sleep for approximately NUM/DENOM seconds. */
+/* NUM/DENOM 초 동안 잠든다. */
 static void
 real_time_sleep (int64_t num, int32_t denom) {
-	/* Convert NUM/DENOM seconds into timer ticks, rounding down.
+        /* NUM/DENOM 초를 타이머 틱으로 환산한 값.
 
-	   (NUM / DENOM) s
-	   ---------------------- = NUM * TIMER_FREQ / DENOM ticks.
-	   1 s / TIMER_FREQ ticks
-	   */
+           (NUM / DENOM) s
+           ---------------------- = NUM * TIMER_FREQ / DENOM 틱 */
 	int64_t ticks = num * TIMER_FREQ / denom;
 
 	ASSERT (intr_get_level () == INTR_ON);
 	if (ticks > 0) {
-		/* We're waiting for at least one full timer tick.  Use
-		   timer_sleep() because it will yield the CPU to other
-		   processes. */
+                /* 한 틱 이상 대기해야 하므로 timer_sleep()을 사용하여
+                   CPU를 다른 스레드에 양보한다. */
 		timer_sleep (ticks);
 	} else {
-		/* Otherwise, use a busy-wait loop for more accurate
-		   sub-tick timing.  We scale the numerator and denominator
-		   down by 1000 to avoid the possibility of overflow. */
+                /* 그렇지 않으면 더 정확한 지연을 위해 busy-wait를 사용한다.
+                   오버플로를 피하려고 분자와 분모를 1000으로 줄인다. */
 		ASSERT (denom % 1000 == 0);
 		busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000));
 	}
