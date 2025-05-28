@@ -13,6 +13,9 @@
 #include "threads/palloc.h"
 #include "threads/vaddr.h"
 
+/* 파일 시스템 접근 동기화를 위한 락. */
+struct lock filesys_lock;
+
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
 

@@ -34,37 +34,40 @@ kbd_init (void) {
 /* 키보드 통계를 출력한다. */
 void
 kbd_print_stats (void) {
-	printf ("Keyboard: %lld keys pressed\n", key_cnt);
+        printf ("Keyboard: %lld keys pressed\n", key_cnt);
 }
+
 /* 연속된 스캔코드를 문자로 매핑한다. */
+struct keymap {
         uint8_t first_scancode;     /* 첫 스캔코드. */
         const char *chars;          /* chars[0]는 first_scancode에 대응하며
-                                                                   chars[1]은 first_scancode+1에 대응한다. */
+                                       chars[1]은 first_scancode+1에 대응한다. */
+};
+
 /* Shift 키와 관계없이 항상 같은 문자를 내는 키들.
    문자 대소문자는 다른 곳에서 처리한다. */
+static const struct keymap invariant_keymap[] = {
+        {0x01, "\033"},
+        {0x0e, "\b"},
+        {0x0f, "\tQWERTYUIOP"},
+        {0x1c, "\r"},
+        {0x1e, "ASDFGHJKL"},
+        {0x2c, "ZXCVBNM"},
+        {0x37, "*"},
+        {0x39, " "},
+        {0, NULL},
 };
 
 /* Shift를 누르지 않았을 때 사용하는 문자들. */
-/* Shift를 누른 상태에서 사용하는 문자들. */
-        /* 키보드 스캔코드. */
-        /* 눌림은 false, 뗌은 true. */
-        /* code에 대응하는 문자. */
-        /* 프리픽스가 있으면 두 번째 바이트까지 읽어 온다. */
-        /* 0x80 비트로 키 눌림/뗌을 구분한다
-           (프리픽스 여부와 무관). */
-                /* Caps Lock 토글. */
-                /* 일반 문자 입력 처리. */
-                        /* Ctrl과 Shift 처리.
-                           Ctrl이 Shift보다 우선한다. */
-                                /* 예: A는 0x41, Ctrl+A는 0x01 등. */
-                        /* Alt는 상위 비트를 세트해 표현한다.
-                           여기서의 0x80은 눌림/뗌 구분과 무관하다. */
-                        /* 키보드 버퍼에 추가한다. */
-                /* 키코드를 시프트 상태 변수로 변환한다. */
-                /* 시프트 키 테이블. */
-                /* 테이블을 순회하여 검색. */
-/* 배열 K에서 SCANCODE를 찾아 해당 문자 값을 *C에 설정하고 true를 반환한다.
-   찾지 못하면 false 를 반환하며 C는 사용하지 않는다. */
+static const struct keymap unshifted_keymap[] = {
+        {0x02, "1234567890-="},
+        {0x1a, "[]"},
+        {0x27, ";'`"},
+        {0x2b, "\\"},
+        {0x33, ",./"},
+        {0, NULL},
+};
+
 /* Shift 상태에서 다른 문자를 내는 키 정의 */
 static const struct keymap shifted_keymap[] = {
 	{0x02, "!@#$%^&*()_+"},

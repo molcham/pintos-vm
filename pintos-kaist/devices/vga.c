@@ -88,16 +88,15 @@ vga_putc (int c) {
 	intr_set_level (old_level);
 }
 /* 화면을 지우고 커서를 좌상단으로 이동한다. */
-
-/* Y행을 공백으로 채운다. */
 static void
-/* 커서를 다음 줄 첫 칸으로 이동한다.
-   마지막 줄이라면 화면을 한 줄 위로 스크롤한다. */
-/* 하드웨어 커서를 (cx,cy)로 이동한다. */
-        /* "Manipulating the Text-mode Cursor"([FREEVGA]) 참고. */
+cls (void) {
+        size_t y;
 
-/* 현재 하드웨어 커서 위치를 (*X,*Y)에 읽어 온다. */
-        /* "Manipulating the Text-mode Cursor"([FREEVGA]) 참고. */
+        for (y = 0; y < ROW_CNT; y++)
+                clear_row (y);
+
+        cx = cy = 0;
+        move_cursor ();
 }
 
 /* Y 행을 공백 문자로 채운다. */
