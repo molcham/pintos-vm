@@ -1,5 +1,5 @@
 
-//=== [1] Include Headers ===//
+//=== [1] 헤더 포함 ===//
 #include "threads/thread.h"
 #include <debug.h>
 #include <stddef.h>
@@ -19,14 +19,14 @@
 #endif
 
 
-//=== [2] Thread Constants ===//
-#define THREAD_MAGIC 0xcd6abf4b   // Used to detect stack overflow
-#define THREAD_BASIC 0xd42df210   // Do not modify
+//=== [2] 스레드 상수 ===//
+#define THREAD_MAGIC 0xcd6abf4b   // 스택 오버플로 감지용 값
+#define THREAD_BASIC 0xd42df210   // 수정 금지
 #define running_thread() ((struct thread *) (pg_round_down (rrsp ())))	
 		// 현재 CPU의 rsp 값을 페이지 경계까지 내림하여 해당 스레드 포인터 반환
 #define is_thread(t) ((t) != NULL && (t)->magic == THREAD_MAGIC)
 		// 유효한 thread 구조체인지 확인하는 매크로 (스택 오버플로 감지 목적)
-#define TIME_SLICE 4              // # of timer ticks to give each thread
+#define TIME_SLICE 4              // 각 스레드에 할당할 타이머 틱 수
 
 
 //=== [3] Thread Lists & Global State ===//
@@ -55,8 +55,8 @@ bool thread_mlfqs;					   // MLFQ 스케줄러 사용 여부
 //=== [4] GDT 초기화용 커널 전용 GDT ===//
 static uint64_t gdt[3] = {
     0,
-    0x00af9a000000ffff, // Kernel code segment
-    0x00cf92000000ffff  // Kernel data segment
+    0x00af9a000000ffff, // 커널 코드 세그먼트
+    0x00cf92000000ffff  // 커널 데이터 세그먼트
 };
 
 

@@ -12,38 +12,36 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 
-/* Page allocator.  Hands out memory in page-size (or
-   page-multiple) chunks.  See malloc.h for an allocator that
-   hands out smaller chunks.
+/* 페이지 할당자.
+   메모리를 페이지 단위(또는 그 배수)로 나눠 제공한다. 더 작은 단위의
+   할당은 malloc.h의 할당자를 참고한다.
 
-   System memory is divided into two "pools" called the kernel
-   and user pools.  The user pool is for user (virtual) memory
-   pages, the kernel pool for everything else.  The idea here is
-   that the kernel needs to have memory for its own operations
-   even if user processes are swapping like mad.
+   시스템 메모리는 커널 풀과 유저 풀이라는 두 영역으로 나뉜다.
+   유저 풀은 사용자 가상 메모리 페이지를, 커널 풀은 그 외의 용도를 위한
+   공간이다. 이렇게 나누어야 사용자 프로세스가 스와핑을 많이 하더라도
+   커널 동작에 필요한 메모리를 확보할 수 있다.
 
-   By default, half of system RAM is given to the kernel pool and
-   half to the user pool.  That should be huge overkill for the
-   kernel pool, but that's just fine for demonstration purposes. */
+   기본적으로 시스템 RAM의 절반씩을 두 풀에 배분하는데, 커널 풀에는
+   다소 넉넉하지만 교육 목적상 충분하다. */
 
-/* A memory pool. */
+/* 메모리 풀 구조체 */
 struct pool {
 	struct lock lock;               /* Mutual exclusion. */
 	struct bitmap *used_map;        /* Bitmap of free pages. */
 	uint8_t *base;                  /* Base of pool. */
 };
 
-/* Two pools: one for kernel data, one for user pages. */
+/* 커널 용도와 사용자 페이지 용도의 두 풀 */
 static struct pool kernel_pool, user_pool;
 
-/* Maximum number of pages to put in user pool. */
+/* 사용자 풀에 넣을 수 있는 최대 페이지 수 */
 size_t user_page_limit = SIZE_MAX;
 static void
 init_pool (struct pool *p, void **bm_base, uint64_t start, uint64_t end);
 
 static bool page_from_pool (const struct pool *, void *page);
 
-/* multiboot info */
+/* 멀티부트 정보 구조체 */
 struct multiboot_info {
 	uint32_t flags;
 	uint32_t mem_low;
@@ -53,7 +51,7 @@ struct multiboot_info {
 	uint32_t mmap_base;
 };
 
-/* e820 entry */
+/* e820 엔트리 */
 struct e820_entry {
 	uint32_t size;
 	uint32_t mem_lo;
@@ -63,7 +61,7 @@ struct e820_entry {
 	uint32_t type;
 };
 
-/* Represent the range information of the ext_mem/base_mem */
+/* 기본 메모리와 확장 메모리 범위 정보 */
 struct area {
 	uint64_t start;
 	uint64_t end;
@@ -75,7 +73,7 @@ struct area {
 #define ACPI_RECLAIMABLE 3
 #define APPEND_HILO(hi, lo) (((uint64_t) ((hi)) << 32) + (lo))
 
-/* Iterate on the e820 entry, parse the range of basemem and extmem. */
+/* e820 엔트리를 순회하며 기본/확장 메모리 크기를 파싱 */
 static void
 resolve_area_info (struct area *base_mem, struct area *ext_mem) {
 	struct multiboot_info *mb_info = ptov (MULTIBOOT_INFO);

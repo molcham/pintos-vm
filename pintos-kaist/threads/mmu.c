@@ -55,12 +55,9 @@ pdpe_walk (uint64_t *pdpe, const uint64_t va, int create) {
 	return pte;
 }
 
-/* Returns the address of the page table entry for virtual
- * address VADDR in page map level 4, pml4.
- * If PML4E does not have a page table for VADDR, behavior depends
- * on CREATE.  If CREATE is true, then a new page table is
- * created and a pointer into it is returned.  Otherwise, a null
- * pointer is returned. */
+/* 가상 주소 VADDR의 PTE 주소를 pml4에서 찾아 반환한다.
+ * 만약 해당 엔트리가 없다면 CREATE 값에 따라 새 페이지 테이블을
+ * 생성하고 그 주소를 반환하거나, 생성하지 않고 NULL을 리턴한다. */
 uint64_t *
 pml4e_walk (uint64_t *pml4e, const uint64_t va, int create) {
 	uint64_t *pte = NULL;
@@ -88,10 +85,9 @@ pml4e_walk (uint64_t *pml4e, const uint64_t va, int create) {
 	return pte;
 }
 
-/* Creates a new page map level 4 (pml4) has mappings for kernel
- * virtual addresses, but none for user virtual addresses.
- * Returns the new page directory, or a null pointer if memory
- * allocation fails. */
+/* 커널 가상 주소만 매핑된 새 pml4를 만든다.
+ * 사용자 영역 매핑은 포함하지 않는다.
+ * 생성에 실패하면 NULL을 반환한다. */
 uint64_t *
 pml4_create (void) {
 	uint64_t *pml4 = palloc_get_page (0);
