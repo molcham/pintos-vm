@@ -88,19 +88,18 @@ vga_putc (int c) {
 	intr_set_level (old_level);
 }
 /* 화면을 지우고 커서를 좌상단으로 이동한다. */
-
-/* Y행을 공백으로 채운다. */
 static void
-/* 커서를 다음 줄 첫 칸으로 이동한다.
-   마지막 줄이라면 화면을 한 줄 위로 스크롤한다. */
-/* 하드웨어 커서를 (cx,cy)로 이동한다. */
-        /* "Manipulating the Text-mode Cursor"([FREEVGA]) 참고. */
+cls (void) {
+        size_t y;
 
-/* 현재 하드웨어 커서 위치를 (*X,*Y)에 읽어 온다. */
-        /* "Manipulating the Text-mode Cursor"([FREEVGA]) 참고. */
+        for (y = 0; y < ROW_CNT; y++)
+                clear_row (y);
+
+        cx = cy = 0;
+        move_cursor ();
 }
 
-/* Clears row Y to spaces. */
+/* Y 행을 공백 문자로 채운다. */
 static void
 clear_row (size_t y) {
 	size_t x;
@@ -112,9 +111,8 @@ clear_row (size_t y) {
 	}
 }
 
-/* Advances the cursor to the first column in the next line on
-   the screen.  If the cursor is already on the last line on the
-   screen, scrolls the screen upward one line. */
+/* 다음 줄의 첫 열로 커서를 옮긴다.
+   마지막 줄에 있을 경우 화면을 한 줄 위로 올린다. */
 static void
 newline (void) {
 	cx = 0;
@@ -127,19 +125,19 @@ newline (void) {
 	}
 }
 
-/* Moves the hardware cursor to (cx,cy). */
+/* 하드웨어 커서를 (cx,cy) 위치로 이동한다. */
 static void
 move_cursor (void) {
-	/* See [FREEVGA] under "Manipulating the Text-mode Cursor". */
+        /* 자세한 내용은 [FREEVGA]의 "Manipulating the Text-mode Cursor" 절을 참고. */
 	uint16_t cp = cx + COL_CNT * cy;
 	outw (0x3d4, 0x0e | (cp & 0xff00));
 	outw (0x3d4, 0x0f | (cp << 8));
 }
 
-/* Reads the current hardware cursor position into (*X,*Y). */
+/* 현재 하드웨어 커서 위치를 (*X,*Y)로 가져온다. */
 static void
 find_cursor (size_t *x, size_t *y) {
-	/* See [FREEVGA] under "Manipulating the Text-mode Cursor". */
+        /* 자세한 내용은 [FREEVGA]의 "Manipulating the Text-mode Cursor" 절을 참고. */
 	uint16_t cp;
 
 	outb (0x3d4, 0x0e);

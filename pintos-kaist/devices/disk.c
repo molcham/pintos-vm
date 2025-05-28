@@ -8,8 +8,8 @@
 #include "threads/interrupt.h"
 #include "threads/synch.h"
 
-/* 이 파일의 코드는 ATA(IDE) 컨트롤러 인터페이스로,
-   [ATA-3] 규격을 가능한 한 따르도록 작성되었다. */
+/* 이 파일의 코드는 ATA(IDE) 컨트롤러와의 인터페이스를 제공하며
+   [ATA-3] 표준을 최대한 따르도록 작성되었다. */
 
 /* ATA 명령 블록 포트 주소. */
 #define reg_data(CHANNEL) ((CHANNEL)->reg_base + 0)     /* 데이터 */
@@ -27,53 +27,55 @@
 #define reg_ctl(CHANNEL) ((CHANNEL)->reg_base + 0x206)  /* Control (w/o). */
 #define reg_alt_status(CHANNEL) reg_ctl (CHANNEL)       /* Alt Status (r/o). */
 
-/* 대안 상태 레지스터 비트. */
-#define STA_BSY 0x80            /* 장치 사용 중 */
-#define STA_DRDY 0x40           /* 장치 준비 완료 */
-#define STA_DRQ 0x08            /* 데이터 요청 */
+/* Alternate Status Register bits. */
+#define STA_BSY 0x80            /* Busy. */
+#define STA_DRDY 0x40           /* Device Ready. */
+#define STA_DRQ 0x08            /* Data Request. */
 
-/* 제어 레지스터 비트. */
-#define CTL_SRST 0x04           /* 소프트웨어 리셋 */
+/* Control Register bits. */
+#define CTL_SRST 0x04           /* Software Reset. */
 
-/* 디바이스 레지스터 비트. */
-#define DEV_MBS 0xa0            /* 반드시 설정해야 함 */
-#define DEV_LBA 0x40            /* LBA 방식 사용 */
-#define DEV_DEV 0x10            /* 장치 선택: 0=마스터, 1=슬레이브 */
+/* Device Register bits. */
+#define DEV_MBS 0xa0            /* Must be set. */
+#define DEV_LBA 0x40            /* Linear based addressing. */
+#define DEV_DEV 0x10            /* Select device: 0=master, 1=slave. */
 
-/* 사용되는 명령어 모음.
-   실제로는 더 많지만 여기서는 필요한 것만 정의한다. */
-#define CMD_IDENTIFY_DEVICE 0xec        /* IDENTIFY DEVICE */
-#define CMD_READ_SECTOR_RETRY 0x20      /* 재시도 포함 READ SECTOR */
-#define CMD_WRITE_SECTOR_RETRY 0x30     /* 재시도 포함 WRITE SECTOR */
+/* Commands.
+   Many more are defined but this is the small subset that we
+   use. */
+#define CMD_IDENTIFY_DEVICE 0xec        /* IDENTIFY DEVICE. */
+#define CMD_READ_SECTOR_RETRY 0x20      /* READ SECTOR with retries. */
+#define CMD_WRITE_SECTOR_RETRY 0x30     /* WRITE SECTOR with retries. */
 
-/* 하나의 ATA 장치. */
+/* An ATA device. */
 struct disk {
-        char name[8];               /* 이름 예: "hd0:1" */
-        struct channel *channel;    /* 디스크가 속한 채널 */
-        int dev_no;                 /* 마스터/슬레이브 구분용 0 또는 1 */
+	char name[8];               /* Name, e.g. "hd0:1". */
+	struct channel *channel;    /* Channel disk is on. */
+	int dev_no;                 /* Device 0 or 1 for master or slave. */
 
-        bool is_ata;                /* 1이면 ATA 디스크 */
-        disk_sector_t capacity;     /* 섹터 단위 용량 (is_ata일 때) */
+	bool is_ata;                /* 1=This device is an ATA disk. */
+	disk_sector_t capacity;     /* Capacity in sectors (if is_ata). */
 
-        long long read_cnt;         /* 읽은 섹터 수 */
-        long long write_cnt;        /* 기록한 섹터 수 */
+	long long read_cnt;         /* Number of sectors read. */
+	long long write_cnt;        /* Number of sectors written. */
 };
 
-/* ATA 채널(컨트롤러).
-   채널 하나당 최대 두 개의 디스크를 제어한다. */
+/* An ATA channel (aka controller).
+   Each channel can control up to two disks. */
 struct channel {
-        char name[8];               /* 이름 예: "hd0" */
-        uint16_t reg_base;          /* 기본 I/O 포트 */
-        uint8_t irq;                /* 사용 중인 인터럽트 */
+	char name[8];               /* Name, e.g. "hd0". */
+	uint16_t reg_base;          /* Base I/O port. */
+	uint8_t irq;                /* Interrupt in use. */
 
-        struct lock lock;           /* 컨트롤러 접근 시 획득해야 하는 락 */
-        bool expecting_interrupt;   /* 인터럽트를 기다리는 중이면 true, 아니면 스푸리어스 */
-        struct semaphore completion_wait;   /* 인터럽트 핸들러가 up 함 */
+	struct lock lock;           /* Must acquire to access the controller. */
+	bool expecting_interrupt;   /* True if an interrupt is expected, false if
+								   any interrupt would be spurious. */
+	struct semaphore completion_wait;   /* Up'd by interrupt handler. */
 
-        struct disk devices[2];     /* 이 채널에 연결된 장치들 */
+	struct disk devices[2];     /* The devices on this channel. */
 };
 
-/* 표준 PC에서 볼 수 있는 두 개의 구형 ATA 채널만 지원한다. */
+/* We support the two "legacy" ATA channels found in a standard PC. */
 #define CHANNEL_CNT 2
 static struct channel channels[CHANNEL_CNT];
 
@@ -246,52 +248,60 @@ disk_write (struct disk *d, disk_sector_t sec_no, const void *buffer) {
 	d->write_cnt++;
 	lock_release (&c->lock);
 }
-/* 디스크 탐지 및 식별. */
+
+/* Disk detection and identification. */
 
-/* ATA 채널을 리셋하고 연결된 장치들이 초기화될 때까지 기다린다. */
-        /* 어떤 장치가 있는지에 따라 리셋 순서가 달라지므로
-           먼저 장치 존재 여부를 확인한다. */
-        /* 소프트 리셋을 수행하면 부수적으로 장치 0이 선택된다.
-           이와 함께 인터럽트를 활성화한다. */
-        /* 장치 0의 BSY 비트가 해제될 때까지 대기. */
-        /* 장치 1의 BSY 비트가 해제될 때까지 대기. */
-/* 장치 D가 ATA 디스크인지 확인해 is_ata에 기록한다.
-   D가 마스터(0)라면 슬레이브(1)가 존재할 가능성을 반환하며,
-   슬레이브일 경우 반환값은 의미 없다. */
-/* 디스크 D에 IDENTIFY DEVICE 명령을 보내 응답을 읽고,
-   그 결과로 용량을 설정한 뒤 정보를 출력한다. */
-/* STRING은 바이트 쌍이 뒤집힌 특수 형식이며,
-   마지막 공백이나 널 문자는 출력하지 않는다. */
-/* 장치 D가 준비될 때까지 기다린 뒤
-   섹터 선택 레지스터에 SEC_NO를 기록한다. LBA 모드를 사용한다. */
-/* 채널 C에 COMMAND를 기록하고 완료 인터럽트를 받을 준비를 한다. */
-/* PIO 모드로 채널 C의 데이터 레지스터에서 섹터를 읽어
-   DISK_SECTOR_SIZE 바이트 크기의 SECTOR 버퍼에 저장한다. */
+static void print_ata_string (char *string, size_t size);
 
-/* PIO 모드로 채널 C의 데이터 레지스터에 SECTOR를 기록한다.
-   버퍼는 DISK_SECTOR_SIZE 바이트 크기여야 한다. */
-/* 저수준 ATA 기본 동작. */
+/* Resets an ATA channel and waits for any devices present on it
+   to finish the reset. */
+static void
+reset_channel (struct channel *c) {
+	bool present[2];
+	int dev_no;
 
-/* 컨트롤러가 유휴 상태(BSY와 DRQ 비트가 클리어) 되기를
-   최대 10초까지 기다린다. 상태 레지스터를 읽으면
-   대기 중인 인터럽트도 함께 지워진다. */
-/* 디스크 D가 BSY를 해제할 때까지 최대 30초 기다린 뒤
-   DRQ 비트 상태를 반환한다. ATA 표준상 초기화에 그 정도 시간이
-   걸릴 수 있다. */
+	/* The ATA reset sequence depends on which devices are present,
+	   so we start by detecting device presence. */
+	for (dev_no = 0; dev_no < 2; dev_no++) {
+		struct disk *d = &c->devices[dev_no];
 
-/* 디스크 D가 선택되도록 채널을 설정한다. */
-/* select_device()와 같지만 호출 전후로 채널이
-   유휴 상태가 될 때까지 대기한다. */
-/* ATA 인터럽트 핸들러. */
-                                inb (reg_status (c));               /* 인터럽트 인식 */
-                                sema_up (&c->completion_wait);      /* 대기 스레드 깨우기 */
-/* 디스크의 읽기/쓰기 횟수를 검사하기 위한 도구.
- * int 0x43, 0x44를 통해 호출한다.
- * 입력:
- *   @RDX - 확인할 채널 번호
- *   @RCX - 확인할 장치 번호
- * 출력:
- *   @RAX - 해당 디스크의 읽기/쓰기 횟수 */
+		select_device (d);
+
+		outb (reg_nsect (c), 0x55);
+		outb (reg_lbal (c), 0xaa);
+
+		outb (reg_nsect (c), 0xaa);
+		outb (reg_lbal (c), 0x55);
+
+		outb (reg_nsect (c), 0x55);
+		outb (reg_lbal (c), 0xaa);
+
+		present[dev_no] = (inb (reg_nsect (c)) == 0x55
+				&& inb (reg_lbal (c)) == 0xaa);
+	}
+
+	/* Issue soft reset sequence, which selects device 0 as a side effect.
+	   Also enable interrupts. */
+	outb (reg_ctl (c), 0);
+	timer_usleep (10);
+	outb (reg_ctl (c), CTL_SRST);
+	timer_usleep (10);
+	outb (reg_ctl (c), 0);
+
+	timer_msleep (150);
+
+	/* Wait for device 0 to clear BSY. */
+	if (present[0]) {
+		select_device (&c->devices[0]);
+		wait_while_busy (&c->devices[0]);
+	}
+
+	/* Wait for device 1 to clear BSY. */
+	if (present[1]) {
+		int i;
+
+		select_device (&c->devices[1]);
+		for (i = 0; i < 3000; i++) {
 			if (inb (reg_nsect (c)) == 1 && inb (reg_lbal (c)) == 1)
 				break;
 			timer_msleep (10);
