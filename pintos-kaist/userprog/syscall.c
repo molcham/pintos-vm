@@ -11,7 +11,6 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "threads/palloc.h"
-#include "threads/vaddr.h"
 
 /* 파일 시스템 접근 동기화를 위한 락. */
 struct lock filesys_lock;
@@ -119,8 +118,10 @@ syscall_handler (struct intr_frame *f) {
 /* 파라미터로 전달받은 주소의 유효성 검증 */
 void validate_addr(const void *addr)
 {
-	if (addr == NULL || !is_user_vaddr (addr) || pml4_get_page (thread_current ()->pml4, addr) == NULL)
-		sys_exit (-1);
+	if(addr == NULL)
+		return sys_exit(-1);	
+	if((pml4_get_page(thread_current()->pml4, addr)) == NULL)
+		return sys_exit(-1);		
 }
 
 void halt(void)
