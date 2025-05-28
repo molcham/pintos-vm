@@ -6,28 +6,28 @@
 #include "filesys/inode.h"
 #include "threads/malloc.h"
 
-/* A directory. */
+/* 디렉터리를 표현하는 구조체. */
 struct dir {
-	struct inode *inode;                /* Backing store. */
-	off_t pos;                          /* Current position. */
+        struct inode *inode;                /* 디렉터리가 저장된 inode. */
+        off_t pos;                          /* 현재 탐색 위치. */
 };
 
-/* A single directory entry. */
+/* 디렉터리의 한 항목을 나타낸다. */
 struct dir_entry {
-	disk_sector_t inode_sector;         /* Sector number of header. */
-	char name[NAME_MAX + 1];            /* Null terminated file name. */
-	bool in_use;                        /* In use or free? */
+        disk_sector_t inode_sector;         /* 해당 inode가 위치한 섹터 번호. */
+        char name[NAME_MAX + 1];            /* 널 종료 문자열 형태의 파일 이름. */
+        bool in_use;                        /* 사용 중이면 true. */
 };
 
-/* Creates a directory with space for ENTRY_CNT entries in the
- * given SECTOR.  Returns true if successful, false on failure. */
+/* SECTOR 위치에 ENTRY_CNT 개의 항목을 저장할 수 있는
+ * 디렉터리를 생성한다. 성공 시 true 를 반환한다. */
 bool
 dir_create (disk_sector_t sector, size_t entry_cnt) {
 	return inode_create (sector, entry_cnt * sizeof (struct dir_entry));
 }
 
-/* Opens and returns the directory for the given INODE, of which
- * it takes ownership.  Returns a null pointer on failure. */
+/* INODE 를 넘겨받아 그 디렉터리를 연다.
+ * 소유권을 넘겨받으며 실패 시 NULL 을 반환한다. */
 struct dir *
 dir_open (struct inode *inode) {
 	struct dir *dir = calloc (1, sizeof *dir);
@@ -42,21 +42,20 @@ dir_open (struct inode *inode) {
 	}
 }
 
-/* Opens the root directory and returns a directory for it.
- * Return true if successful, false on failure. */
+/* 루트 디렉터리를 열어 그에 대한 dir 구조체를 반환한다. */
 struct dir *
 dir_open_root (void) {
 	return dir_open (inode_open (ROOT_DIR_SECTOR));
 }
 
-/* Opens and returns a new directory for the same inode as DIR.
- * Returns a null pointer on failure. */
+/* DIR 와 같은 inode 를 참조하는 새 dir 구조체를 반환한다.
+ * 실패하면 NULL 을 반환한다. */
 struct dir *
 dir_reopen (struct dir *dir) {
 	return dir_open (inode_reopen (dir->inode));
 }
 
-/* Destroys DIR and frees associated resources. */
+/* DIR 을 닫고 관련된 자원을 해제한다. */
 void
 dir_close (struct dir *dir) {
 	if (dir != NULL) {
@@ -65,17 +64,16 @@ dir_close (struct dir *dir) {
 	}
 }
 
-/* Returns the inode encapsulated by DIR. */
+/* DIR 이 감싸고 있는 inode 를 반환한다. */
 struct inode *
 dir_get_inode (struct dir *dir) {
 	return dir->inode;
 }
 
-/* Searches DIR for a file with the given NAME.
- * If successful, returns true, sets *EP to the directory entry
- * if EP is non-null, and sets *OFSP to the byte offset of the
- * directory entry if OFSP is non-null.
- * otherwise, returns false and ignores EP and OFSP. */
+/* DIR 에서 NAME 을 가진 파일을 찾는다.
+ * 성공 시 true 를 반환하며 EP가 주어지면 엔트리를 저장하고,
+ * OFSP가 주어지면 해당 엔트리의 오프셋을 돌려준다.
+ * 실패하면 false 를 반환하고 EP, OFSP 는 무시된다. */
 static bool
 lookup (const struct dir *dir, const char *name,
 		struct dir_entry *ep, off_t *ofsp) {
@@ -97,10 +95,9 @@ lookup (const struct dir *dir, const char *name,
 	return false;
 }
 
-/* Searches DIR for a file with the given NAME
- * and returns true if one exists, false otherwise.
- * On success, sets *INODE to an inode for the file, otherwise to
- * a null pointer.  The caller must close *INODE. */
+/* DIR 에서 NAME 을 가진 파일을 찾아 있으면 true 를 반환한다.
+ * 성공 시 *INODE 에 해당 파일의 inode 를 반환하며,
+ * 실패하면 NULL 을 기록한다. 반환된 inode 는 호출자가 닫아야 한다. */
 bool
 dir_lookup (const struct dir *dir, const char *name,
 		struct inode **inode) {
@@ -117,12 +114,10 @@ dir_lookup (const struct dir *dir, const char *name,
 	return *inode != NULL;
 }
 
-/* Adds a file named NAME to DIR, which must not already contain a
- * file by that name.  The file's inode is in sector
- * INODE_SECTOR.
- * Returns true if successful, false on failure.
- * Fails if NAME is invalid (i.e. too long) or a disk or memory
- * error occurs. */
+/* DIR 에 NAME 이라는 새 파일을 추가한다. 같은 이름이 존재해선 안 된다.
+ * 파일의 inode 는 INODE_SECTOR 에 위치한다.
+ * 성공 시 true 를 반환하며, NAME 이 너무 길거나
+ * 디스크/메모리 오류가 발생하면 false 를 반환한다. */
 bool
 dir_add (struct dir *dir, const char *name, disk_sector_t inode_sector) {
 	struct dir_entry e;
@@ -140,19 +135,17 @@ dir_add (struct dir *dir, const char *name, disk_sector_t inode_sector) {
 	if (lookup (dir, name, NULL, NULL))
 		goto done;
 
-	/* Set OFS to offset of free slot.
-	 * If there are no free slots, then it will be set to the
-	 * current end-of-file.
+        /* 비어 있는 슬롯의 위치를 OFS 에 저장한다.
+         * 남는 슬롯이 없으면 파일 끝 위치가 사용된다.
 
-	 * inode_read_at() will only return a short read at end of file.
-	 * Otherwise, we'd need to verify that we didn't get a short
-	 * read due to something intermittent such as low memory. */
+         * inode_read_at() 은 파일 끝에서만 짧게 읽을 수 있으므로
+         * 그 외의 경우엔 메모리 부족 등 일시적 오류가 없는지 확인해야 한다. */
 	for (ofs = 0; inode_read_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
 			ofs += sizeof e)
 		if (!e.in_use)
 			break;
 
-	/* Write slot. */
+        /* 빈 슬롯에 정보를 기록한다. */
 	e.in_use = true;
 	strlcpy (e.name, name, sizeof e.name);
 	e.inode_sector = inode_sector;
@@ -162,9 +155,9 @@ done:
 	return success;
 }
 
-/* Removes any entry for NAME in DIR.
- * Returns true if successful, false on failure,
- * which occurs only if there is no file with the given NAME. */
+/* DIR 에서 NAME 항목을 제거한다.
+ * 성공하면 true, 실패하면 false 를 반환한다.
+ * 실패 조건은 해당 이름의 파일이 존재하지 않을 때뿐이다. */
 bool
 dir_remove (struct dir *dir, const char *name) {
 	struct dir_entry e;
@@ -175,21 +168,21 @@ dir_remove (struct dir *dir, const char *name) {
 	ASSERT (dir != NULL);
 	ASSERT (name != NULL);
 
-	/* Find directory entry. */
+        /* 디렉터리 엔트리를 찾는다. */
 	if (!lookup (dir, name, &e, &ofs))
 		goto done;
 
-	/* Open inode. */
+        /* 해당 inode 를 연다. */
 	inode = inode_open (e.inode_sector);
 	if (inode == NULL)
 		goto done;
 
-	/* Erase directory entry. */
+        /* 디렉터리 엔트리를 지운다. */
 	e.in_use = false;
 	if (inode_write_at (dir->inode, &e, sizeof e, ofs) != sizeof e)
 		goto done;
 
-	/* Remove inode. */
+        /* 실제 inode 도 삭제한다. */
 	inode_remove (inode);
 	success = true;
 
@@ -198,9 +191,8 @@ done:
 	return success;
 }
 
-/* Reads the next directory entry in DIR and stores the name in
- * NAME.  Returns true if successful, false if the directory
- * contains no more entries. */
+/* DIR 에서 다음 항목의 이름을 NAME 에 저장한다.
+ * 더 읽을 엔트리가 없으면 false 를 반환한다. */
 bool
 dir_readdir (struct dir *dir, char name[NAME_MAX + 1]) {
 	struct dir_entry e;
