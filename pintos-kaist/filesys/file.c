@@ -2,7 +2,6 @@
 #include <debug.h>
 #include "filesys/inode.h"
 #include "threads/malloc.h"
-#include "userprog/syscall.h"
 
 /* 열린 파일을 나타낸다. */
 struct file {
@@ -56,9 +55,6 @@ file_close (struct file *file) {
 		inode_close (file->inode);
 		free (file);
 	}
-
-	struct thread *curr = thread_current();
-	curr->next_fd = get_next_fd(curr);	
 }
 
 /* FILE 이 감싸고 있는 inode 를 반환한다. */
