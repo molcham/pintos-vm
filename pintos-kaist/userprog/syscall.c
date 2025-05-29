@@ -302,7 +302,7 @@ int write(int fd, const void *buffer, unsigned size)
 	}
 	
 	/* 실행 중인 스레드의 fd_table을 확인하여 fd에 매핑되는 file 정의 */		
-	else if(fd > 2 && fd < 64)
+	else if(fd > 2 && fd < FD_MAX)
 	{		
 		lock_acquire(&filesys_lock);
 
