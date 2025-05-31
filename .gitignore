@@ -1,3 +1,11 @@
+# VS code
+.vscode/*
+
+# test 결과물
+*/build/tests/**/*.output
+*/build/tests/**/*.errors
+*/build/tests/**/*.result
+
 # Pintos 빌드 중간 파일 및 산출물
 *.o
 *.d

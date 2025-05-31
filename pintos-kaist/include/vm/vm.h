@@ -70,7 +70,7 @@ struct frame {
  * Put the table of "method" into the struct's member, and
  * call it whenever you needed. */
 struct page_operations {
-	bool (*swap_in) (struct page *, void *);
+	bool (*swap_in) (struct page *, void *);    
 	bool (*swap_out) (struct page *);
 	void (*destroy) (struct page *);
 	enum vm_type type;
@@ -85,6 +85,7 @@ struct page_operations {
  * We don't want to force you to obey any specific design for this struct.
  * All designs up to you for this. */
 struct supplemental_page_table {
+	
 };
 
 #include "threads/thread.h"
