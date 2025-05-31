@@ -306,8 +306,10 @@ process_exit (void) {
 		{
 			file_close(curr->fdt[i]);
 			curr->fdt[i] = NULL;
-		}
+			}
 	}
+	palloc_free_page(curr->fdt);
+	curr->fdt = NULL;
 	
 	 /* 부모에게 작업 종료 안내 */ 
 	sema_up(&curr->wait_sema);

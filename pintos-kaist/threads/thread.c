@@ -125,7 +125,7 @@ thread_init (void) {
 
 	/* Set up a thread structure for the running thread. */
 	initial_thread = running_thread ();      // 현재 실행 중인 스레드를 thread 구조체로 변환
-	init_thread (initial_thread, "main", PRI_DEFAULT);  // 초기 스레드 이름과 우선순위 설정
+	init_thread (initial_thread, "main", PRI_DEFAULT);   // 초기 스레드 이름과 우선순위 설정	
 	initial_thread->status = THREAD_RUNNING; // 현재 실행 중 상태로 표시
 	initial_thread->tid = allocate_tid ();   // TID 할당	
 }
@@ -138,6 +138,12 @@ thread_start (void) {
 	struct semaphore idle_started;
 	sema_init (&idle_started, 0);
 	thread_create ("idle", PRI_MIN, idle, &idle_started);
+
+	/* fdt에 메모리 할당 */
+	struct thread *curr = thread_current ();
+	curr->fdt = palloc_get_page (PAL_ZERO);
+	if (curr->fdt == NULL)
+		PANIC ("Failed to allocate FDT");
 
 	/* Start preemptive thread scheduling. */
 	intr_enable ();
@@ -205,6 +211,14 @@ thread_create (const char *name, int priority,
 
 	/* 스레드 초기화 및 TID 설정 */
 	init_thread (t, name, priority);     // 이름과 우선순위 설정
+
+    t->fdt = palloc_get_page (PAL_ZERO);
+       if (t->fdt == NULL)
+       {
+			palloc_free_page (t);
+			return TID_ERROR;
+       } 	
+
 	tid = t->tid = allocate_tid ();      // 고유한 TID 할당
 
 	/* 새 스레드가 실행할 함수와 컨텍스트 설정 */
@@ -678,6 +692,7 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->wait_on_lock = NULL; 
 	t->base_priority = priority; 	
 	t->next_fd = 3;
+	t->fdt = NULL;
 
 	sema_init(&t->wait_sema, 0); /* wait_sema 초기화 */
 	sema_init(&t->exit_sema, 0); /* exit_sema 초기화 */
