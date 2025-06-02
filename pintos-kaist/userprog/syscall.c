@@ -356,6 +356,9 @@ struct thread* get_child(tid_t tid)
 {
 	struct thread *curr = thread_current();
 	
+	if(list_empty(&curr->children))
+		return NULL;
+
 	/* 자식 리스트를 순회하며 파라미터로 받은 tid가 있는지 확인 */
 	for(struct list_elem *e = list_begin(&curr->children); e != list_end(&curr->children); e = list_next(e))
 	{
