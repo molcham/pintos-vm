@@ -624,7 +624,6 @@ validate_segment (const struct Phdr *phdr, struct file *file) {
  * outside of #ifndef macro. */
 
 /* load() helpers. */
-static bool install_page (void *upage, void *kpage, bool writable);
 
 /* 파일 FILE의 OFS 위치에서 시작하는 세그먼트를 UPAGE 주소에 적재한다.
  * 총 READ_BYTES + ZERO_BYTES 바이트의 가상 메모리를 다음과 같이 준비한다.
@@ -710,7 +709,8 @@ install_page (void *upage, void *kpage, bool writable) {
         /* 해당 가상 주소에 이미 페이지가 없는지 확인한 뒤 매핑한다. */
 	return (pml4_get_page (t->pml4, upage) == NULL
 			&& pml4_set_page (t->pml4, upage, kpage, writable));
-}
+} 
+
 #else
 /* 이 아래의 코드는 프로젝트 3 이후에 사용된다.
  * 프로젝트 2에서만 구현하려면 위의 블록을 수정하면 된다. */
@@ -764,12 +764,14 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 static bool
 setup_stack (struct intr_frame *if_) {
 	bool success = false;
-	void *stack_bottom = (void *) (((uint8_t *) USER_STACK) - PGSIZE);
+	void *stack_bottom = (void *) (((uint8_t *) USER_STACK) - PGSIZE);	
 
 	/* TODO: Map the stack on stack_bottom and claim the page immediately.
 	 * TODO: If success, set the rsp accordingly.
 	 * TODO: You should mark the page is stack. */
 	/* TODO: Your code goes here */
+
+	// success = vm_claim_page()
 
 	return success;
 }

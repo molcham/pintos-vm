@@ -256,18 +256,3 @@ real_time_sleep (int64_t num, int32_t denom) {
 	}
 }
 
-// bool wakeup_ticks_less(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED) {
-//     struct thread *t1 = list_entry(a, struct thread, elem);
-//     struct thread *t2 = list_entry(b, struct thread, elem);
-
-//     return t1->wakeup_tick < t2->wakeup_tick;
-// }
-
-// void update_min_tick(struct list *list) 
-// {
-// 	struct list_elem *min_elem = list_min (list, wakeup_ticks_less, NULL);
-
-// 	if (min_elem != list_end(list)) {
-// 		struct thread *min_thread = list_entry(min_elem, struct thread, elem);
-// 	}
-// }

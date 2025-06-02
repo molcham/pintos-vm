@@ -92,7 +92,7 @@ size_t hash_size (struct hash *);
 bool hash_empty (struct hash *);
 
 /* 간단히 활용할 수 있는 해시 함수 예제들로, 바이트 배열, 문자열,
- * 정수 등을 해시 값으로 변환합니다. */
+ *정수 등을 해시 값으로 변환합니다. */
 uint64_t hash_bytes (const void *, size_t);
 uint64_t hash_string (const char *);
 uint64_t hash_int (int);

@@ -117,10 +117,20 @@ syscall_handler (struct intr_frame *f) {
 }
 
 /* 파라미터로 전달받은 주소의 유효성 검증 */
-void validate_addr(const void *addr)
+void validate_addr (const void *addr)
 {
-	if (addr == NULL || !is_user_vaddr (addr) || pml4_get_page (thread_current ()->pml4, addr) == NULL)
-		sys_exit (-1);		
+    struct thread *curr = thread_current ();
+
+    if (addr == NULL || !is_user_vaddr (addr))
+        sys_exit (-1);
+		
+    /* Check the first byte and the last byte of a machine word. */
+    for (size_t i = 0; i < sizeof (void *); i++)
+    {
+        const void *check = (const uint8_t *) addr + i;
+        if (!is_user_vaddr (check) || pml4_get_page (curr->pml4, check) == NULL)
+            sys_exit (-1);
+    }
 }
 
 void halt(void)

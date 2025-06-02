@@ -1,0 +1,19 @@
+FAIL
+Kernel panic in run: PANIC at ../../vm/vm.c:131 in vm_get_frame(): assertion `frame != NULL' failed.
+Call stack: 0x800421800f 0x8004220cff 0x8004220e49 0x8004220dc0 0x800421ca6e 0x80042090e1 0x80042094ff 0x800421a7da 0x8004220ba3 0x8004220b01 0x800421c58d 0x800421c0f2 0x800421b9e3 0x800421b68c 0x80042077e5
+Translation of call stack:
+0x000000800421800f: debug_panic (lib/kernel/debug.c:32)
+0x0000008004220cff: vm_get_frame (vm/vm.c:132)
+0x0000008004220e49: vm_do_claim_page (vm/vm.c:178)
+0x0000008004220dc0: vm_try_handle_fault (vm/vm.c:156)
+0x000000800421ca6e: page_fault (userprog/exception.c:130)
+0x00000080042090e1: intr_handler (threads/interrupt.c:327)
+0x00000080042094ff: intr_entry (threads/intr-stubs.o:?)
+0x000000800421a7da: hash_find (lib/kernel/hash.c:121)
+0x0000008004220ba3: spt_find_page (vm/vm.c:75)
+0x0000008004220b01: vm_alloc_page_with_initializer (vm/vm.c:51)
+0x000000800421c58d: load_segment (userprog/process.c:751)
+0x000000800421c0f2: load (userprog/process.c:507)
+0x000000800421b9e3: process_exec (userprog/process.c:223)
+0x000000800421b68c: initd (userprog/process.c:75)
+0x00000080042077e5: kernel_thread (threads/thread.c:674)

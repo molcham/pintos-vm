@@ -55,6 +55,11 @@
         "directory.h": "c",
         "flags.h": "c",
         "main.h": "c",
-        "stdbool.h": "c"
+        "stdbool.h": "c",
+        "palloc.h": "c",
+        "chrono": "c",
+        "ratio": "c",
+        "vm.h": "c",
+        "hash.h": "c"
     }
 }

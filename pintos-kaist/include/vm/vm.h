@@ -2,25 +2,30 @@
 #define VM_VM_H
 #include <stdbool.h>
 #include "threads/palloc.h"
+#include "kernel/hash.h"
+#include "threads/thread.h"
+#include "threads/init.h"
+#include "userprog/process.h"
+#include "threads/mmu.h"
 
 enum vm_type {
-	/* page not initialized */
+	/* 페이지가 아직 초기화되지 않음 */
 	VM_UNINIT = 0,
-	/* page not related to the file, aka anonymous page */
+	/* 파일과 관련되지 않은 페이지, 즉 익명 페이지 */
 	VM_ANON = 1,
-	/* page that realated to the file */
+	/* 파일과 연결된 페이지 */
 	VM_FILE = 2,
-	/* page that hold the page cache, for project 4 */
+	/* 페이지 캐시를 담는 페이지 (프로젝트 4용) */
 	VM_PAGE_CACHE = 3,
 
-	/* Bit flags to store state */
+	/* 페이지 상태를 위한 비트 플래그 */
 
-	/* Auxillary bit flag marker for store information. You can add more
-	 * markers, until the value is fit in the int. */
+	/* 추가 정보 저장을 위한 보조 플래그입니다.
+		* 값이 int 범위를 넘지 않는 한 원하는 만큼 추가할 수 있습니다. */
 	VM_MARKER_0 = (1 << 3),
 	VM_MARKER_1 = (1 << 4),
 
-	/* DO NOT EXCEED THIS VALUE. */
+	/* 이 값보다 커지면 안 됩니다. */
 	VM_MARKER_END = (1 << 31),
 };
 
@@ -36,39 +41,46 @@ struct thread;
 
 #define VM_TYPE(type) ((type) & 7)
 
-/* The representation of "page".
- * This is kind of "parent class", which has four "child class"es, which are
- * uninit_page, file_page, anon_page, and page cache (project4).
- * DO NOT REMOVE/MODIFY PREDEFINED MEMBER OF THIS STRUCTURE. */
+/* "page" 구조체의 표현.
+ * 일종의 "부모 클래스" 역할을 하며, 네 개의 "자식 클래스"가 있습니다:
+ * uninit_page, file_page, anon_page, 그리고 페이지 캐시(project4).
+ * 이 구조체에 미리 정의된 멤버는 삭제하거나 수정하지 마세요. */
 struct page {
 	const struct page_operations *operations;
-	void *va;              /* Address in terms of user space */
-	struct frame *frame;   /* Back reference for frame */
+	void *va;              /* 사용자 공간 기준의 주소 */
+	struct frame *frame;   /* 프레임으로의 역참조 */	
 
-	/* Your implementation */
+	/* 구현 시 필요한 추가 필드 */
+	struct hash_elem hash_elem;  /* page를 반환하기 위한 hash_elem */		
 
-	/* Per-type data are binded into the union.
-	 * Each function automatically detects the current union */
+	bool writable;
+
+	/* 타입별 데이터가 이 유니온에 결합됩니다.
+	* 각 함수는 현재 어떤 유니온을 써야 할지 자동으로 판별합니다. */
 	union {
 		struct uninit_page uninit;
 		struct anon_page anon;
-		struct file_page file;
+		struct file_page file;		
 #ifdef EFILESYS
 		struct page_cache page_cache;
 #endif
 	};
 };
 
-/* The representation of "frame" */
+/* frame table 정의 */
+struct list frame_table;
+
+/* "frame" 구조체의 표현 */
 struct frame {
 	void *kva;
 	struct page *page;
+	struct list_elem *frame_elem;
 };
 
-/* The function table for page operations.
- * This is one way of implementing "interface" in C.
- * Put the table of "method" into the struct's member, and
- * call it whenever you needed. */
+/* 페이지 동작을 위한 함수 테이블.
+ * C 언어에서 "인터페이스"를 구현하는 한 방법으로,
+ * 함수 포인터 테이블을 구조체 멤버에 두고
+ * 필요할 때 호출하는 방식입니다. */
 struct page_operations {
 	bool (*swap_in) (struct page *, void *);    
 	bool (*swap_out) (struct page *);
@@ -81,11 +93,11 @@ struct page_operations {
 #define destroy(page) \
 	if ((page)->operations->destroy) (page)->operations->destroy (page)
 
-/* Representation of current process's memory space.
- * We don't want to force you to obey any specific design for this struct.
- * All designs up to you for this. */
+/* 현재 프로세스의 메모리 공간을 표현한 구조체.
+ * 특별한 설계를 강요하지 않으니,
+ * 원하는 방식으로 자유롭게 꾸며도 됩니다. */
 struct supplemental_page_table {
-	
+	struct hash *spt_table;
 };
 
 #include "threads/thread.h"
@@ -103,11 +115,16 @@ bool vm_try_handle_fault (struct intr_frame *f, void *addr, bool user,
 		bool write, bool not_present);
 
 #define vm_alloc_page(type, upage, writable) \
-	vm_alloc_page_with_initializer ((type), (upage), (writable), NULL, NULL)
+	 vm_alloc_page_with_initializer ((type), (upage), (writable), NULL, NULL)
 bool vm_alloc_page_with_initializer (enum vm_type type, void *upage,
 		bool writable, vm_initializer *init, void *aux);
 void vm_dealloc_page (struct page *page);
 bool vm_claim_page (void *va);
 enum vm_type page_get_type (struct page *page);
+
+/* 신규 생성 함수 */
+uint64_t get_hash (const struct hash_elem *e, void *aux);
+bool is_same_page (const struct hash_elem *a, const struct hash_elem *b, void *aux);
+
 
 #endif  /* VM_VM_H */

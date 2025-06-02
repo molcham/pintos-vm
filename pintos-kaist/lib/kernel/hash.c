@@ -23,8 +23,7 @@ static void rehash (struct hash *);
    LESS 함수를 이용해 항목을 비교하도록 H 해시 테이블을 초기화합니다.
    AUX 인자는 부가적인 데이터를 전달할 때 사용됩니다. */
 bool
-hash_init (struct hash *h,
-		hash_hash_func *hash, hash_less_func *less, void *aux) {
+hash_init (struct hash *h, hash_hash_func *hash, hash_less_func *less, void *aux) {
 	h->elem_cnt = 0;
 	h->bucket_cnt = 4;
 	h->buckets = malloc (sizeof *h->buckets * h->bucket_cnt);

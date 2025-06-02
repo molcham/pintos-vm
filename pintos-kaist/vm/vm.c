@@ -10,6 +10,10 @@ void
 vm_init (void) {
 	vm_anon_init ();
 	vm_file_init ();
+
+	/* frame table 초기화 */
+	list_init(&frame_table);
+
 #ifdef EFILESYS  /* For project 4 */
 	pagecache_init ();
 #endif
@@ -42,12 +46,20 @@ bool
 vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 		vm_initializer *init, void *aux) {
 
+	/* 정의된 VM 타입이 아니면 에러 처리 */		
 	ASSERT (VM_TYPE(type) != VM_UNINIT)
 
 	struct supplemental_page_table *spt = &thread_current ()->spt;
 
-        /* upage가 이미 사용 중인지 확인합니다. */
-	if (spt_find_page (spt, upage) == NULL) {
+	/* upage가 이미 사용 중인지 확인합니다. */
+	if (spt_find_page (spt, upage) == NULL) {		
+		struct page *new_page;
+		new_page->writable = false;
+
+		uninit_new(new_page, upage, init, type, aux, new_page->uninit.page_initializer);
+		bool result = spt_insert_page(spt, new_page);
+
+		return result;
                 /* TODO: 페이지를 만들고 VM 타입에 맞는 initializer를 얻은 뒤
                  * TODO: uninit_new를 호출하여 "uninit" 페이지 구조체를 생성합니다.
                  * TODO: 호출 후 필요한 필드를 수정해야 합니다. */
@@ -62,17 +74,32 @@ err:
 struct page *
 spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 	struct page *page = NULL;
-        /* TODO: 이 함수를 완성하세요. */
+    
+	/* 전달 받은 va를 포함한 dummie_page를 만들어 동일한 page가 있는지 확인 */
+	struct page *dummie_page;
+	dummie_page->va = va;
+	
+	/* 동일한 page가 없으면 함수 종료 */
+	if(!hash_find(spt, &dummie_page->hash_elem))
+		return NULL;
+
+	/* 동일한 page의 hash_elem을 통해 page 확보 */
+	struct hash_elem *hash_elem = hash_find(spt, &dummie_page->hash_elem);
+	page = hash_entry(hash_elem, struct page, hash_elem);
 
 	return page;
 }
 
 /* PAGE를 spt에 검증 후 삽입합니다. */
 bool
-spt_insert_page (struct supplemental_page_table *spt UNUSED,
-		struct page *page UNUSED) {
+spt_insert_page (struct supplemental_page_table *spt UNUSED, struct page *page UNUSED) {
 	int succ = false;
-        /* TODO: 이 함수를 완성하세요. */
+	
+	if(spt_find_page(spt, page->va) == NULL)
+	{
+		hash_insert(spt->spt_table, &page->hash_elem);
+		succ = true;
+	}
 
 	return succ;
 }
@@ -107,12 +134,18 @@ vm_evict_frame (void) {
  * 프레임을 얻기 위해 기존 프레임을 내보낸 뒤 유효한 주소를 반환합니다.*/
 static struct frame *
 vm_get_frame (void) {
-	struct frame *frame = NULL;
-        /* TODO: 이 함수를 완성하세요. */
+	struct frame *new_frame = NULL;
+	new_frame = palloc_get_page(PAL_USER | PAL_ZERO);
+	
+	/* 할당할 frame이 없으면 교체 로직 호출 */
+	// if(frame == NULL)
 
-	ASSERT (frame != NULL);
-	ASSERT (frame->page == NULL);
-	return frame;
+	/* 할당받은 frame을 frame table에 삽입 */
+	list_push_front(&frame_table, new_frame->frame_elem);
+
+	ASSERT (new_frame != NULL);
+	ASSERT (new_frame->page == NULL);
+	return new_frame;
 }
 
 /* 스택을 확장합니다. */
@@ -147,9 +180,11 @@ vm_dealloc_page (struct page *page) {
 
 /* VA에 할당된 페이지를 확보합니다. */
 bool
-vm_claim_page (void *va UNUSED) {
-	struct page *page = NULL;
-        /* TODO: 이 함수를 완성하세요 */
+vm_claim_page (void *va UNUSED) {			
+	struct supplement_page_table *spt = thread_current()->spt;
+
+	/* 전달받은 va를 통해 page 확보 */
+	struct page *page = spt_find_page(spt, va);	
 
 	return vm_do_claim_page (page);
 }
@@ -163,14 +198,23 @@ vm_do_claim_page (struct page *page) {
 	frame->page = page;
 	page->frame = frame;
 
-        /* TODO: 페이지의 VA와 프레임의 PA를 매핑하는 항목을 삽입하세요. */
+	/* TODO: 페이지의 VA와 프레임의 PA를 매핑하는 항목을 삽입하세요. */
+	struct thread *t = thread_current ();
+
+	/* 해당 가상 주소에 이미 페이지가 없는지 확인한 뒤 매핑한다. */
+	bool result = (pml4_get_page (t->pml4, page->va) == NULL && pml4_set_page (t->pml4, page->va, frame->kva, page->writable));
+	if(result == false)	
+		return false;
 
 	return swap_in (page, frame->kva);
 }
 
 /* 새로운 supplemental page table을 초기화합니다 */
 void
-supplemental_page_table_init (struct supplemental_page_table *spt UNUSED) {
+supplemental_page_table_init (struct supplemental_page_table *spt UNUSED)
+{
+	/* SPT 내부의 해시 테이블 초기화 */
+	hash_init(&spt->spt_table, get_hash, is_same_page, NULL);
 }
 
 /* src에서 dst로 supplemental page table을 복사합니다 */
@@ -185,3 +229,27 @@ supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
         /* TODO: 스레드가 보유한 모든 supplemental_page_table을 파괴하고
          * TODO: 수정된 내용을 저장소에 모두 반영하세요. */
 }
+
+uint64_t get_hash (const struct hash_elem *e, void *aux)
+{
+	struct page *upage = hash_entry(e, struct page, hash_elem);
+	void *va = upage->va;
+
+	return hash_bytes(va, sizeof(va));	
+}
+// hash_entry를 써서 page를 찾고
+// 찾은 page에서 va 값을 찾아서
+
+//아래 두 함수 중에 하나로부터 bucket_idx를 찾으면 된다.
+// va를 hash_byte에 넣어서 반환?
+// find_bucket으로 bucket 정보 반환?
+
+/* 두 페이지간의 대소관계 비교??? */
+bool is_same_page (const struct hash_elem *a, const struct hash_elem *b, void *aux)
+{
+	void *a_va = hash_entry(a, struct page, hash_elem)->va;
+	void *b_va = hash_entry(b, struct page, hash_elem)->va;
+
+	return (uint64_t *)a_va < (uint64_t *)b_va ? true : false;
+}
+
