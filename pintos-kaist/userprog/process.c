@@ -624,6 +624,7 @@ validate_segment (const struct Phdr *phdr, struct file *file) {
  * outside of #ifndef macro. */
 
 /* load() helpers. */
+static bool install_page (void *upage, void *kpage, bool writable);
 
 /* 파일 FILE의 OFS 위치에서 시작하는 세그먼트를 UPAGE 주소에 적재한다.
  * 총 READ_BYTES + ZERO_BYTES 바이트의 가상 메모리를 다음과 같이 준비한다.

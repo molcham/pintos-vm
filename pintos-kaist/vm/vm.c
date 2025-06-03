@@ -192,7 +192,7 @@ vm_dealloc_page (struct page *page) {
 /* VA에 할당된 페이지를 SPT를 탐색하여 확보합니다. */
 bool
 vm_claim_page (void *va UNUSED) {			
-	struct supplement_page_table *spt = thread_current()->spt;
+	struct supplemental_page_table *spt = &thread_current()->spt;
 
 	/* 전달받은 va를 통해 page 확보 */
 	struct page *page = spt_find_page(spt, va);		
@@ -223,13 +223,9 @@ vm_do_claim_page (struct page *page) {
 /* 새로운 supplemental page table을 초기화합니다 */
 void
 supplemental_page_table_init (struct supplemental_page_table *spt UNUSED)
-{
-	struct supplemental_page_table *new_spt = malloc(sizeof(struct supplemental_page_table));
-	
+{	
 	/* SPT 내부의 해시 테이블 초기화 */
-	hash_init(&new_spt->hash_table, get_hash, cmp_page, NULL);
-	
-	spt = new_spt;
+	hash_init(&spt->hash_table, get_hash, cmp_page, NULL);
 }
 
 /* src에서 dst로 supplemental page table을 복사합니다 */

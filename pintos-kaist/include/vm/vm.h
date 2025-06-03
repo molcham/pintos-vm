@@ -3,7 +3,6 @@
 #include <stdbool.h>
 #include "threads/palloc.h"
 #include "kernel/hash.h"
-#include "threads/thread.h"
 #include "threads/init.h"
 #include "userprog/process.h"
 #include "threads/mmu.h"
@@ -96,11 +95,8 @@ struct page_operations {
 /* 현재 프로세스의 메모리 공간을 표현한 구조체.
  * 특별한 설계를 강요하지 않으니,
  * 원하는 방식으로 자유롭게 꾸며도 됩니다. */
-struct supplemental_page_table {
-	struct hash hash_table;
-};
+struct supplemental_page_table;
 
-#include "threads/thread.h"
 void supplemental_page_table_init (struct supplemental_page_table *spt);
 bool supplemental_page_table_copy (struct supplemental_page_table *dst,
 		struct supplemental_page_table *src);
