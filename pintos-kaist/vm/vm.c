@@ -58,11 +58,13 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 
 	/* upage가 이미 사용 중인지 확인합니다. */
 	if (spt_find_page (spt, upage) == NULL) {		
-		struct page *new_page;
-		new_page->writable = false;
+		////////////// 수정 (*new_page -> new_page) ////////////////
+		struct page new_page;
+		new_page.writable = false;
 
-		uninit_new(new_page, upage, init, type, aux, new_page->uninit.page_initializer);
-		bool result = spt_insert_page(spt, new_page);
+		uninit_new(&new_page, upage, init, type, aux, new_page.uninit.page_initializer);
+		bool result = spt_insert_page(spt, &new_page);
+		////////////// 수정 ////////////////
 
 		return result;
                 /* TODO: 페이지를 만들고 VM 타입에 맞는 initializer를 얻은 뒤
@@ -81,15 +83,19 @@ spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 	struct page *page = NULL;
     
 	/* 전달 받은 va를 포함한 dummie_page를 만들어 동일한 page가 있는지 확인 */
-	struct page *dummie_page;
-	dummie_page->va = va;
+	
+	////////////// 수정 (*dummie_page -> dummie_page) ////////////////
+	struct page dummie_page;
+	dummie_page.va = va;
 	
 	/* 동일한 page가 없으면 함수 종료 */
-	if(!hash_find(spt, &dummie_page->hash_elem))
+	if(!hash_find(spt, &dummie_page.hash_elem))
 		return NULL;
 
 	/* 동일한 page의 hash_elem을 통해 page 확보 */
-	struct hash_elem *hl = hash_find(spt, &dummie_page->hash_elem);
+	struct hash_elem *hl = hash_find(spt, &dummie_page.hash_elem);
+	////////////// 수정 (*dummie_page -> dummie_page) ////////////////
+
 	page = hash_entry(hl, struct page, hash_elem);
 
 	return page;
@@ -146,7 +152,7 @@ vm_get_frame (void) {
 	// if(frame == NULL)
 
 	/* 할당받은 frame을 frame table에 삽입 */
-	list_push_front(&frame_table, new_frame->frame_elem);
+	list_push_front(&frame_table, &new_frame->frame_elem);
 
 	ASSERT (new_frame != NULL);
 	ASSERT (new_frame->page == NULL);
