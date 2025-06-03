@@ -38,7 +38,7 @@ page_get_type (struct page *page) {
 	}
 }
 
-// 윤석이형 존잘 개 섹시한 남자 여자친구 100명  심심한데 여친 구함 
+// 윤석이형 존잘 개 섹시한 남자 여자친구 100명 심심한데 여친 구함 
 
 /* 헬퍼 함수들 */
 static struct frame *vm_get_victim (void);
@@ -224,12 +224,13 @@ vm_do_claim_page (struct page *page) {
 void
 supplemental_page_table_init (struct supplemental_page_table *spt UNUSED)
 {
-	struct supplemental_page_table *new_spt = malloc(sizeof(struct supplemental_page_table));
+	struct hash *new_hash = malloc(sizeof(struct hash));
 	
 	/* SPT 내부의 해시 테이블 초기화 */
-	hash_init(&new_spt->hash_table, get_hash, cmp_page, NULL);
+	hash_init(new_hash, get_hash, cmp_page, NULL);
 	
-	spt = new_spt;
+	struct thread *curr = thread_current();
+	spt->hash_table = new_hash;
 }
 
 /* src에서 dst로 supplemental page table을 복사합니다 */

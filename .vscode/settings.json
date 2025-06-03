@@ -60,6 +60,7 @@
         "chrono": "c",
         "ratio": "c",
         "vm.h": "c",
-        "hash.h": "c"
+        "hash.h": "c",
+        "malloc.h": "c"
     }
 }
