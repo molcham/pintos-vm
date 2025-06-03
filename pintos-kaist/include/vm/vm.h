@@ -68,13 +68,13 @@ struct page {
 };
 
 /* frame table 정의 */
-struct list frame_table;
+extern struct list frame_table;
 
 /* "frame" 구조체의 표현 */
 struct frame {
 	void *kva;
 	struct page *page;
-	struct list_elem *frame_elem;
+	struct list_elem frame_elem;
 };
 
 /* 페이지 동작을 위한 함수 테이블.
@@ -124,7 +124,7 @@ enum vm_type page_get_type (struct page *page);
 
 /* 신규 생성 함수 */
 uint64_t get_hash (const struct hash_elem *e, void *aux);
-bool is_same_page (const struct hash_elem *a, const struct hash_elem *b, void *aux);
+bool cmp_page (const struct hash_elem *a, const struct hash_elem *b, void *aux);
 
 
 #endif  /* VM_VM_H */

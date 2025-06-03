@@ -6,6 +6,12 @@
 #include <stdint.h>
 #include "threads/interrupt.h"
 #include "threads/synch.h"
+
+/* Thread identifier type.
+   You can redefine this to whatever type you like. */
+typedef int tid_t;
+#define TID_ERROR ((tid_t) -1)          /* Error value for tid_t. */
+
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -18,11 +24,6 @@ enum thread_status {
 	THREAD_BLOCKED,     /* Waiting for an event to trigger. */
 	THREAD_DYING        /* About to be destroyed. */
 };
-
-/* Thread identifier type.
-   You can redefine this to whatever type you like. */
-typedef int tid_t;
-#define TID_ERROR ((tid_t) -1)          /* Error value for tid_t. */
 
 /* Thread priorities. */
 #define PRI_MIN 0                       /* Lowest priority. */
@@ -120,7 +121,7 @@ struct thread {
 #endif
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */
-	struct supplemental_page_table *spt;
+	struct supplemental_page_table *spt;	
 	
 	/* Owned by userprog/process.c. */
 	// uint64_t *pml4;                     /* Page map level 4 */

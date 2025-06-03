@@ -203,10 +203,10 @@ pml4_activate (uint64_t *pml4) {
 	lcr3 (vtop (pml4 ? pml4 : base_pml4));
 }
 
-/* Looks up the physical address that corresponds to user virtual
- * address UADDR in pml4.  Returns the kernel virtual address
- * corresponding to that physical address, or a null pointer if
- * UADDR is unmapped. */
+/* 사용자 가상 주소(uaddr)에 대응하는 물리 주소를 찾는 함수입니다.
+ * 이 함수는 주어진 사용자 주소(uaddr)가 pml4 페이지 테이블에서 실제 메모리에 매핑된 위치를 찾습니다.
+ * 만약 해당 주소(uaddr)가 물리 메모리에 매핑되어 있다면, 그 물리 주소에 해당하는 커널 가상 주소를 반환합니다.
+ * 만약 uaddr가 아직 매핑되지 않았다면(NULL), NULL 포인터를 반환합니다. */
 void *
 pml4_get_page (uint64_t *pml4, const void *uaddr) {
 	ASSERT (is_user_vaddr (uaddr));
@@ -218,14 +218,13 @@ pml4_get_page (uint64_t *pml4, const void *uaddr) {
 	return NULL;
 }
 
-/* Adds a mapping in page map level 4 PML4 from user virtual page
- * UPAGE to the physical frame identified by kernel virtual address KPAGE.
- * UPAGE must not already be mapped. KPAGE should probably be a page obtained
- * from the user pool with palloc_get_page().
- * If WRITABLE is true, the new page is read/write;
- * otherwise it is read-only.
- * Returns true if successful, false if memory allocation
- * failed. */
+/* 주어진 사용자 가상 페이지(upage)를 실제 물리 메모리 페이지(kpage)에 연결해주는 함수입니다.
+ * 이 함수는 주어진 사용자 페이지(upage)가 기존에 다른 물리 페이지와 매핑되어 있지 않아야 합니다.
+ * kpage는 일반적으로 유저 풀(user pool)에서 palloc_get_page()를 통해 얻은 물리 페이지를 가리킵니다.
+ * 만약 rw(쓰기 가능 여부)가 true라면, 이 새로 매핑된 페이지는 읽기/쓰기가 모두 가능해지고,
+ * false라면 읽기만 가능한 페이지로 설정됩니다.
+ * 페이지 매핑에 성공하면 true를 반환하며, 메모리 할당에 실패하면 false를 반환합니다.
+ */
 bool
 pml4_set_page (uint64_t *pml4, void *upage, void *kpage, bool rw) {
 	ASSERT (pg_ofs (upage) == 0);
