@@ -108,7 +108,7 @@ spt_insert_page (struct supplemental_page_table *spt UNUSED, struct page *page U
 	
 	if(spt_find_page(spt, page->va) == NULL)
 	{
-		hash_insert(spt->spt_table, &page->hash_elem);
+		hash_insert(&spt->hash_table, &page->hash_elem);
 		succ = true;
 	}
 
@@ -224,8 +224,12 @@ vm_do_claim_page (struct page *page) {
 void
 supplemental_page_table_init (struct supplemental_page_table *spt UNUSED)
 {
+	struct supplemental_page_table *new_spt = malloc(sizeof(struct supplemental_page_table));
+	
 	/* SPT 내부의 해시 테이블 초기화 */
-	hash_init(&spt->spt_table, get_hash, cmp_page, NULL);
+	hash_init(&new_spt->hash_table, get_hash, cmp_page, NULL);
+	
+	spt = new_spt;
 }
 
 /* src에서 dst로 supplemental page table을 복사합니다 */

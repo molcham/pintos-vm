@@ -97,7 +97,7 @@ struct page_operations {
  * 특별한 설계를 강요하지 않으니,
  * 원하는 방식으로 자유롭게 꾸며도 됩니다. */
 struct supplemental_page_table {
-	struct hash *spt_table;
+	struct hash hash_table;
 };
 
 #include "threads/thread.h"
