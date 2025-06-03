@@ -3,9 +3,7 @@
 
 #include "threads/thread.h"
 
-#ifndef VM
-static bool install_page (void *upage, void *kpage, bool writable);
-#endif
+typedef int tid_t;
 
 tid_t process_create_initd (const char *file_name);
 tid_t process_fork (const char *name, struct intr_frame *if_);
