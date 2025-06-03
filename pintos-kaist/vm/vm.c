@@ -56,22 +56,21 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 
 	struct supplemental_page_table *spt = &thread_current ()->spt;
 
+	/* TODO: 페이지를 만들고 VM 타입에 맞는 initializer를 얻은 뒤
+	 * TODO: uninit_new를 호출하여 "uninit" 페이지 구조체를 생성합니다.
+	 * TODO: 호출 후 필요한 필드를 수정해야 합니다. */
+	/* TODO: 생성한 페이지를 spt에 넣어주세요. */
+
 	/* upage가 이미 사용 중인지 확인합니다. */
 	if (spt_find_page (spt, upage) == NULL) {		
-		////////////// 수정 (*new_page -> new_page) ////////////////
+		
 		struct page new_page;
 		new_page.writable = false;
 
 		uninit_new(&new_page, upage, init, type, aux, new_page.uninit.page_initializer);
 		bool result = spt_insert_page(spt, &new_page);
-		////////////// 수정 ////////////////
-
-		return result;
-                /* TODO: 페이지를 만들고 VM 타입에 맞는 initializer를 얻은 뒤
-                 * TODO: uninit_new를 호출하여 "uninit" 페이지 구조체를 생성합니다.
-                 * TODO: 호출 후 필요한 필드를 수정해야 합니다. */
-
-                /* TODO: 생성한 페이지를 spt에 넣어주세요. */
+		
+		return result;              
 	}
 // err:
 	return false;
@@ -148,8 +147,8 @@ vm_get_frame (void) {
 	struct frame *new_frame = NULL;
 	new_frame = palloc_get_page(PAL_USER | PAL_ZERO);
 	
-	/* 할당할 frame이 없으면 교체 로직 호출 */
-	// if(frame == NULL)
+	/* 할당할 frame이 없으면 교체 로직 호출(추가 구현) */
+	
 
 	/* 할당받은 frame을 frame table에 삽입 */
 	list_push_front(&frame_table, &new_frame->frame_elem);

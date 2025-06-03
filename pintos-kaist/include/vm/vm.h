@@ -54,6 +54,8 @@ struct page {
 
 	bool writable;
 
+	bool is_swaped;
+
 	/* 타입별 데이터가 이 유니온에 결합됩니다.
 	* 각 함수는 현재 어떤 유니온을 써야 할지 자동으로 판별합니다. */
 	union {
