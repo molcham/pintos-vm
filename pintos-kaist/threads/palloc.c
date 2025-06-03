@@ -12,6 +12,10 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 
+//////////////// 추가 ////////////////
+#include "threads/interrupt.h"
+//////////////// 추가 ////////////////
+
 /* 페이지 할당자.
    메모리를 페이지 단위(또는 그 배수)로 나눠 제공한다. 더 작은 단위의
    할당은 malloc.h의 할당자를 참고한다.
@@ -257,8 +261,17 @@ palloc_init (void) {
    남은 페이지가 부족하면 NULL을 반환하지만 PAL_ASSERT가 설정되어 있으면 패닉을 일으킨다. */
 void *
 palloc_get_multiple (enum palloc_flags flags, size_t page_cnt) {
+
+	//////////////// 추가 ////////////////
+	// enum intr_level old_level = intr_disable();
+	//////////////// 추가 ////////////////
+
 	struct pool *pool = flags & PAL_USER ? &user_pool : &kernel_pool;
 
+	//////////////// 추가 ////////////////
+	// intr_set_level(old_level);
+	//////////////// 추가 ////////////////
+	
 	lock_acquire (&pool->lock);
 	size_t page_idx = bitmap_scan_and_flip (pool->used_map, 0, page_cnt, false);
 	lock_release (&pool->lock);

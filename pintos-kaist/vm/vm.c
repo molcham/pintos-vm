@@ -87,13 +87,19 @@ spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 	////////////// 수정 (*dummie_page -> dummie_page) ////////////////
 	struct page dummie_page;
 	dummie_page.va = va;
-	
+
+	struct list_elem *le = &spt->hash_table->buckets->head;
+	struct hash_elem *e = list_entry(le, struct hash_elem, list_elem);
+
+	struct page *cpage = hash_entry(e, struct page, hash_elem);
+
+
 	/* 동일한 page가 없으면 함수 종료 */
-	if(!hash_find(spt, &dummie_page.hash_elem))
+	if(!hash_find(spt->hash_table, &dummie_page.hash_elem))
 		return NULL;
 
 	/* 동일한 page의 hash_elem을 통해 page 확보 */
-	struct hash_elem *hl = hash_find(spt, &dummie_page.hash_elem);
+	struct hash_elem *hl = hash_find(spt->hash_table, &dummie_page.hash_elem);
 	////////////// 수정 (*dummie_page -> dummie_page) ////////////////
 
 	page = hash_entry(hl, struct page, hash_elem);
@@ -174,9 +180,20 @@ bool
 vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 		bool user UNUSED, bool write UNUSED, bool not_present UNUSED) {
 	struct supplemental_page_table *spt UNUSED = &thread_current ()->spt;
-	struct page *page = NULL;
-        /* TODO: fault가 유효한지 확인하세요 */
+	
+	//////////////// 수정 (NULL -> spt_find_page) ////////////////
+	struct page *page = spt_find_page(spt, addr);
+	//////////////// 수정 (NULL -> spt_find_page) ////////////////
+    
+	    /* TODO: fault가 유효한지 확인하세요 */
         /* TODO: 필요한 로직을 작성합니다 */
+
+	//////////////// 추가 ////////////////
+	if (page == NULL)
+		return false; // 잘못된 접근이거나, 매핑되지 않은 주소
+	if (write && !page->writable)
+		return false; // 쓰기 권한이 없는 페이지에 write 접근
+	//////////////// 추가 ////////////////
 
 	return vm_do_claim_page (page);
 }
@@ -206,14 +223,21 @@ vm_do_claim_page (struct page *page) {
 	/* 매핑할 프레임 획득 */
 	struct frame *frame = vm_get_frame ();
 
-	/* page와 frame의 상호 참조 */
+	////////////////////// 추가 //////////////////////
+    // if (frame == NULL)
+    //     return false;
+	////////////////////// 추가 //////////////////////
+
+	// /* page와 frame의 상호 참조 */
 	frame->page = page;
 	page->frame = frame;
 	
 	struct thread *t = thread_current ();
 
-	/* 해당 가상 주소에 이미 페이지가 없는지 확인한 뒤 매핑한다. */
-	bool result = (pml4_get_page (t->pml4, page->va) == NULL && pml4_set_page (t->pml4, page->va, frame->kva, page->writable));
+	// /* 해당 가상 주소에 이미 페이지가 없는지 확인한 뒤 매핑한다. */
+	bool result = (pml4_get_page (t->pml4, page->va) == NULL &&
+				   pml4_set_page (t->pml4, page->va, frame->kva, page->writable));
+	
 	if(result == false)	
 		return false;
 
@@ -252,7 +276,7 @@ uint64_t get_hash (const struct hash_elem *e, void *aux)
 	struct page *upage = hash_entry(e, struct page, hash_elem);
 	void *va = upage->va;
 
-	return hash_bytes(va, sizeof(va));	
+	return hash_bytes(&va, sizeof(va));	
 }
 
 /* 두 페이지간의 대소관계 비교(정렬에 큰 의미 없음) */
