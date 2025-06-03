@@ -82,17 +82,26 @@ main (void) {
 	thread_init ();
 	console_init ();
 
-	/* Initialize memory system. */
+	/* 
+	Initialize memory system.
+	메모리 초기화 
+    */
 	mem_end = palloc_init ();
 	malloc_init ();
 	paging_init (mem_end);
 
 #ifdef USERPROG
+    //유저 프로그램 준비
 	tss_init ();
 	gdt_init ();
 #endif
 
-	/* Initialize interrupt handlers. */
+	/* 
+	Initialize interrupt handlers. 
+   -스케줄러 및 인터럽트 초기화
+   -스레드 스케줄링 및 인터럽트 처리 가능하게 설정
+   -이후 인터럽트가 가능해지며, 유저 프로그램도 본격 실행 가능
+	*/
 	intr_init ();
 	timer_init ();
 	kbd_init ();
@@ -112,13 +121,26 @@ main (void) {
 	filesys_init (format_filesys);
 #endif
 
+/*
+======================================
+project3 VM
+
+-우리가 구현해야 할 가상 메모리 
+ 서브시스템이 초기화되는 지점
+======================================
+*/
+
 #ifdef VM
+    
 	vm_init ();
 #endif
 
 	printf ("Boot complete.\n");
 
-	/* Run actions specified on kernel command line. */
+	/* 
+	Run actions specified on kernel command line. 
+    명령어에 따라 실제 유저 프로그램이 실행됨	
+	*/
 	run_actions (argv);
 
 	/* Finish up. */

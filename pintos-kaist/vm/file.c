@@ -6,7 +6,14 @@ static bool file_backed_swap_in (struct page *page, void *kva);
 static bool file_backed_swap_out (struct page *page);
 static void file_backed_destroy (struct page *page);
 
-/* 이 구조체는 수정하지 않습니다. */
+/* 이 구조체는 수정하지 않습니다.
+   
+   -mmap된 페이지는 무조건 file_page로 분류된다.
+   -해당 페이지의 동작 방식은 아래의 함수 테이블을 사용 
+
+   -아래의 함수들이 mmap된 파일을 디스크에서 읽어오고
+   -필요시 dirty 페이지를 write-backed 한다.
+*/
 static const struct page_operations file_ops = {
 	.swap_in = file_backed_swap_in,
 	.swap_out = file_backed_swap_out,

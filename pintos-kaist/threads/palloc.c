@@ -280,6 +280,7 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt) {
 	return pages;
 }
 
+
 /* 빈 페이지 한 장을 얻어 커널 가상 주소를 반환한다.
    PAL_USER가 있으면 사용자 풀에서, 아니면 커널 풀에서 가져온다.
    PAL_ZERO가 지정되면 페이지를 0으로 채운다.

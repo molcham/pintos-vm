@@ -10,7 +10,7 @@
 static long long page_fault_cnt;
 
 static void kill (struct intr_frame *);
-static void page_fault (struct intr_frame *);
+static void page_fault (struct intr_frame *); //페이지 폴트 발생시 호출됨
 
 /* 사용자 프로그램에서 발생 가능한 인터럽트의 핸들러를 등록한다.
 
@@ -54,6 +54,23 @@ exception_init (void) {
 	   We need to disable interrupts for page faults because the
 	   fault address is stored in CR2 and needs to be preserved. */
 	intr_register_int (14, 0, INTR_OFF, page_fault, "#PF Page-Fault Exception");
+	
+	/*
+	============================================================
+    인터럽트 / 예외 벡터 테이블에 핸들러를 등록하는 함수
+    
+	"CPU에서 인터럽트 14번이 발생하면 page_fault()를 호출하라"
+
+	즉, 유저 프로세스가 잘못된 주소 접근을 하면
+
+	1. MMU가 #PF(page fault) 예외를 발생
+	2. CPU가 인터럽트 벡터 14번으로 분기 
+	3. CPU ->IDT 14번 ->page_fault() 실행
+	4. vm_try_handler_fault() 호출하여 SPT확인 및 처리
+
+	============================================================
+	*/
+
 }
 
 /* 예외 통계를 출력한다. */
@@ -102,7 +119,11 @@ kill (struct intr_frame *f) {
    fault 정보는 exception.h의 PF_* 매크로 형식으로 intr_frame의 error_code에 담겨 있다.
    아래 예제는 그 정보를 해석하는 방법을 보여 준다.
    자세한 내용은 [IA32-v3a] 5.15 "Exception and Interrupt Reference"의
-   "Interrupt 14--Page Fault Exception(#PF)" 항목을 참고하라. */
+   "Interrupt 14--Page Fault Exception(#PF)" 항목을 참고하라.
+   
+   *페이지 폴트가 나면 이 함수가 vm.c의 vm_try_handle_fault()를 호출
+   
+    */
 static void
 page_fault (struct intr_frame *f) {
 	bool not_present;  /* True: not-present page, false: writing r/o page. */
@@ -126,7 +147,10 @@ page_fault (struct intr_frame *f) {
 	user = (f->error_code & PF_U) != 0;
 
 #ifdef VM
-        /* 프로젝트 3 이후 버전을 위한 처리. */
+        /* 
+		프로젝트 3 이후 버전을 위한 처리. 
+		-페이지 폴트가 나면 아래의 함수를 호출
+		*/
 	if (vm_try_handle_fault (f, fault_addr, user, write, not_present))
 		return;
 #endif

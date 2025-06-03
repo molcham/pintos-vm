@@ -4,13 +4,13 @@
 #include "threads/palloc.h"
 
 enum vm_type {
-	/* page not initialized */
+	/*아직 초기화되지 않은 페이지*/
 	VM_UNINIT = 0,
-	/* page not related to the file, aka anonymous page */
+	/* 파일과 무관한, 익명 페이지 */
 	VM_ANON = 1,
-	/* page that realated to the file */
+	/* 파일에 연결된 페이지 */
 	VM_FILE = 2,
-	/* page that hold the page cache, for project 4 */
+	/* 파일 시스템용 페이지 캐시(project 4용) */
 	VM_PAGE_CACHE = 3,
 
 	/* Bit flags to store state */
@@ -36,39 +36,79 @@ struct thread;
 
 #define VM_TYPE(type) ((type) & 7)
 
-/* The representation of "page".
+/*
+=============================================================================== 
+  The representation of "page".
  * This is kind of "parent class", which has four "child class"es, which are
  * uninit_page, file_page, anon_page, and page cache (project4).
- * DO NOT REMOVE/MODIFY PREDEFINED MEMBER OF THIS STRUCTURE. */
+ * DO NOT REMOVE/MODIFY PREDEFINED MEMBER OF THIS STRUCTURE. 
+ * 
+ 
+ [struct page]
+ 
+ * 가상 메모리에서의 하나의 페이지를 나타내는 핵심 구조체
+ * OOP 스타일의 "부모 클래스" 같은 역할
+ * 사용자 코드 기준의 주소 단위(가상 공간)
+ * 모든 페이지의 공통 정보를 담고 있다.
+   => 어떤 페이지인지에 따라 union 안에서 struct 가 선택적으로 포함된다.
+ ==============================================================================
+ * */
 struct page {
-	const struct page_operations *operations;
-	void *va;              /* Address in terms of user space */
-	struct frame *frame;   /* Back reference for frame */
+	const struct page_operations *operations; //해당 페이지가 사용할 연산들(함수 포인터 테이블)
+	void *va;              /*사용자 공간상의 주소(virtual address)*/
+	struct frame *frame;   /* 실제 물리 메모리와 연결된 frame */
 
 	/* Your implementation */
 
-	/* Per-type data are binded into the union.
-	 * Each function automatically detects the current union */
+	//이 페이지가 어떤 종류인지에 따라 구조체 선택(uninit/anon/file등) => type
 	union {
-		struct uninit_page uninit;
-		struct anon_page anon;
-		struct file_page file;
+		struct uninit_page uninit; //초기화 안된 페이지
+		struct anon_page anon; //익명 페이지
+		struct file_page file; //파일 페이지
 #ifdef EFILESYS
-		struct page_cache page_cache;
+		struct page_cache page_cache; //페이지 캐시(프로젝트 4)
 #endif
 	};
 };
 
-/* The representation of "frame" */
+/*
+============================================ 
+The representation of "frame" 
+
+-이 구조체는 물리 메모리의 프레임을 나타낸다.
+-실제 메모리의 할당 단위
+
+-gitbook (필요한 멤버를 추가해도 된다.)
+============================================
+*/
 struct frame {
-	void *kva;
-	struct page *page;
+	void *kva; //커널(kernel) 가상(virtual) 주소(address)
+	struct page *page; //이 프레임과 매핑된 가상 페이지
 };
 
-/* The function table for page operations.
+
+
+/*
+=====================================================================
+ The function table for page operations.
  * This is one way of implementing "interface" in C.
  * Put the table of "method" into the struct's member, and
- * call it whenever you needed. */
+ * call it whenever you needed.
+ * 
+ 
+ [page_operations]
+
+ * 각 page가 사용할 수 있는 동작을 정의한 함수 포인터 테이블
+ * page의 type에 맞는 동작을 구현한다.
+   
+   1.swap_in :디스크에서 메모리로 페이지를 로드하는 함수 포인터
+   2.swap_out : 메모리에서 디스크로 페이지를 스왑 아웃하는 함수 포인터
+   3.destroy : 페이지를 제거하는 함수 포인터
+   4.type : 페이지의 타입을 나타내는 열거형.
+
+   //
+ ======================================================================
+ *  */
 struct page_operations {
 	bool (*swap_in) (struct page *, void *);
 	bool (*swap_out) (struct page *);
@@ -81,13 +121,25 @@ struct page_operations {
 #define destroy(page) \
 	if ((page)->operations->destroy) (page)->operations->destroy (page)
 
-/* Representation of current process's memory space.
+/* 
+===========================================================================
+   Representation of current process's memory space.
  * We don't want to force you to obey any specific design for this struct.
- * All designs up to you for this. */
+ * All designs up to you for this.  
+ 
+ [보조 페이지 테이블]
+
+* 기본 테이블이 표현하지 못하는 정보를 추가로 담기 위해 필요
+* 페이지 폴트 처리 및 리소스 관리를 위해 필요하다.
+
+===========================================================================
+*/
 struct supplemental_page_table {
 };
 
 #include "threads/thread.h"
+
+/*spt를 위한 함수들*/
 void supplemental_page_table_init (struct supplemental_page_table *spt);
 bool supplemental_page_table_copy (struct supplemental_page_table *dst,
 		struct supplemental_page_table *src);
@@ -96,6 +148,8 @@ struct page *spt_find_page (struct supplemental_page_table *spt,
 		void *va);
 bool spt_insert_page (struct supplemental_page_table *spt, struct page *page);
 void spt_remove_page (struct supplemental_page_table *spt, struct page *page);
+
+
 
 void vm_init (void);
 bool vm_try_handle_fault (struct intr_frame *f, void *addr, bool user,

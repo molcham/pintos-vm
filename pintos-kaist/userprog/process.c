@@ -730,6 +730,9 @@ lazy_load_segment (struct page *page, void *aux) {
  * 아니면 읽기 전용으로 설정한다.
  *
  * 성공하면 true, 메모리 할당 실패나 디스크 오류가 발생하면 false를 반환한다. */
+
+
+//민석오빠가 올려준 properties 파일 작성 해주기 ! 
 static bool
 load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		uint32_t read_bytes, uint32_t zero_bytes, bool writable) {
@@ -744,7 +747,12 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
 		size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-                /* TODO: lazy_load_segment에 정보를 전달할 aux를 설정한다. */
+                /* 
+				
+				TODO: lazy_load_segment에 정보를 전달할 aux를 설정한다.
+				
+				
+				 */
 		void *aux = NULL;
 		if (!vm_alloc_page_with_initializer (VM_ANON, upage,
 					writable, lazy_load_segment, aux))

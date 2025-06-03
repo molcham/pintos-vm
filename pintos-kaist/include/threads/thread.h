@@ -29,7 +29,7 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 
-#define FD_MAX 64                       /* FD 테이블 저장 가능한 최대 갯수 */
+#define FD_MAX 64                  /* FD 테이블 저장 가능한 최대 갯수 */
 
 /* A kernel thread or user process.
  *

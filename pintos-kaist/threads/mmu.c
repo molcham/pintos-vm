@@ -56,8 +56,12 @@ pdpe_walk (uint64_t *pdpe, const uint64_t va, int create) {
 }
 
 /* 가상 주소 VADDR의 PTE 주소를 pml4에서 찾아 반환한다.
- * 만약 해당 엔트리가 없다면 CREATE 값에 따라 새 페이지 테이블을
- * 생성하고 그 주소를 반환하거나, 생성하지 않고 NULL을 리턴한다. */
+
+ * 만약 해당 엔트리가 없다면 
+ * CREATE 값에 따라 새 페이지 테이블을 생성하고 
+ 
+ * 그 주소를 반환하거나, 생성하지 않고 NULL을 리턴한다. 
+*/
 uint64_t *
 pml4e_walk (uint64_t *pml4e, const uint64_t va, int create) {
 	uint64_t *pte = NULL;

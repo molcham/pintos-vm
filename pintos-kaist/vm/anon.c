@@ -37,6 +37,16 @@ anon_initializer (struct page *page, enum vm_type type, void *kva) {
 static bool
 anon_swap_in (struct page *page, void *kva) {
 	struct anon_page *anon_page = &page->anon;
+
+	//이 아래에 스왑 슬롯에서 데이터를 읽어와서
+	//kva 프레임에 복사하는 코드가 들어가야 한다.
+
+
+	//1.스왑 슬롯 번호 가져오기
+
+	//2.스왑 슬롯에서 물리 메모리로 복사
+
+	//3.이제 스왑 슬롯은 사용하지 않으므로 free
 }
 
 /* 페이지 내용을 swap 영역에 기록하여 내보냅니다. */
