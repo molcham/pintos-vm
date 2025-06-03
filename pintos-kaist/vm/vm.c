@@ -173,10 +173,30 @@ vm_handle_wp (struct page *page UNUSED) {
 bool
 vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 		bool user UNUSED, bool write UNUSED, bool not_present UNUSED) {
+	
+	/* 페이지 폴트 유형
+	 * 0. 잘못된 주소 접근 (미할당 주소)
+	 * 1. Lazy_Loading
+	 * 2. 스왑 아웃된 상태
+	 * 3. 쓰기 권한 에러
+	 * 4. 커널 주소 접근 */
+
+	/* 쓰기 권한 에러, 또는 커널 주소 접근이면 함수 종료 */
+	if(write == true || user == false)	
+		return false;
+
 	struct supplemental_page_table *spt UNUSED = &thread_current ()->spt;
 	struct page *page = NULL;
-        /* TODO: fault가 유효한지 확인하세요 */
-        /* TODO: 필요한 로직을 작성합니다 */
+
+	/* 스왑-아웃된 상태면 스왑-인 (추후 구현) */
+	
+
+	/* 페이지 폴트를 일으킨 va를 가지고 spt에서 page 탐색 */
+	page = spt_find_page(spt, addr);
+
+	/* 프로세스에 할당된 가상 주소가 아닐 경우 함수 종료 */
+	if(page == NULL)
+		return false;		
 
 	return vm_do_claim_page (page);
 }
@@ -195,7 +215,11 @@ vm_claim_page (void *va UNUSED) {
 	struct supplemental_page_table *spt = &thread_current()->spt;
 
 	/* 전달받은 va를 통해 page 확보 */
-	struct page *page = spt_find_page(spt, va);		
+	struct page *page = spt_find_page(spt, va);	
+	
+	/* page가 없을 경우 함수 종료 (추후 페이지 폴트 처리?)*/
+	if(page == NULL)
+		return false;
 
 	return vm_do_claim_page (page);
 }
@@ -203,8 +227,12 @@ vm_claim_page (void *va UNUSED) {
 /* 확보한 PAGE를 FRAME에 매핑하여 MMU 설정을 완료합니다. */
 static bool
 vm_do_claim_page (struct page *page) {
-	/* 매핑할 프레임 획득 */
+	/* 매핑할 frame 획득 */
 	struct frame *frame = vm_get_frame ();
+
+	/* 매핑할 frame이 없으면 함수 종료 (추후 교체 로직 도입 필요)*/
+	if(frame == NULL)
+		return false;
 
 	/* page와 frame의 상호 참조 */
 	frame->page = page;
@@ -247,7 +275,7 @@ uint64_t get_hash (const struct hash_elem *e, void *aux)
 	struct page *upage = hash_entry(e, struct page, hash_elem);
 	void *va = upage->va;
 
-	return hash_bytes(va, sizeof(va));	
+	return hash_bytes(&va, sizeof(va));	
 }
 
 /* 두 페이지간의 대소관계 비교(정렬에 큰 의미 없음) */
