@@ -4,6 +4,9 @@
 #include "vm/vm.h"
 #include "vm/inspect.h"
 
+/* Global frame table. */
+struct list frame_table;
+
 /* 각 서브시스템의 초기화 코드를 호출하여
  * 가상 메모리 하위 시스템을 초기화합니다. */
 void
@@ -84,8 +87,8 @@ spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 		return NULL;
 
 	/* 동일한 page의 hash_elem을 통해 page 확보 */
-	struct hash_elem *hash_elem = hash_find(spt, &dummie_page->hash_elem);
-	page = hash_entry(hash_elem, struct page, hash_elem);
+	struct hash_elem *hl = hash_find(spt, &dummie_page->hash_elem);
+	page = hash_entry(hl, struct page, hash_elem);
 
 	return page;
 }
@@ -178,7 +181,7 @@ vm_dealloc_page (struct page *page) {
 	free (page);
 }
 
-/* VA에 할당된 페이지를 확보합니다. */
+/* VA에 할당된 페이지를 SPT를 탐색하여 확보합니다. */
 bool
 vm_claim_page (void *va UNUSED) {			
 	struct supplement_page_table *spt = thread_current()->spt;
@@ -186,19 +189,22 @@ vm_claim_page (void *va UNUSED) {
 	/* 전달받은 va를 통해 page 확보 */
 	struct page *page = spt_find_page(spt, va);	
 
+	if(page == NULL)
+		return false;
+
 	return vm_do_claim_page (page);
 }
 
-/* PAGE를 확보하고 MMU 설정을 완료합니다. */
+/* 확보한 PAGE를 FRAME에 매핑하여 MMU 설정을 완료합니다. */
 static bool
 vm_do_claim_page (struct page *page) {
+	/* 매핑할 프레임 획득 */
 	struct frame *frame = vm_get_frame ();
 
-	/* Set links */
+	/* page와 frame의 상호 참조 */
 	frame->page = page;
 	page->frame = frame;
-
-	/* TODO: 페이지의 VA와 프레임의 PA를 매핑하는 항목을 삽입하세요. */
+	
 	struct thread *t = thread_current ();
 
 	/* 해당 가상 주소에 이미 페이지가 없는지 확인한 뒤 매핑한다. */
@@ -214,7 +220,7 @@ void
 supplemental_page_table_init (struct supplemental_page_table *spt UNUSED)
 {
 	/* SPT 내부의 해시 테이블 초기화 */
-	hash_init(&spt->spt_table, get_hash, is_same_page, NULL);
+	hash_init(&spt->spt_table, get_hash, cmp_page, NULL);
 }
 
 /* src에서 dst로 supplemental page table을 복사합니다 */
@@ -230,6 +236,7 @@ supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
          * TODO: 수정된 내용을 저장소에 모두 반영하세요. */
 }
 
+/* hash_elem으로 bucket_idx 획득 */
 uint64_t get_hash (const struct hash_elem *e, void *aux)
 {
 	struct page *upage = hash_entry(e, struct page, hash_elem);
@@ -237,15 +244,9 @@ uint64_t get_hash (const struct hash_elem *e, void *aux)
 
 	return hash_bytes(va, sizeof(va));	
 }
-// hash_entry를 써서 page를 찾고
-// 찾은 page에서 va 값을 찾아서
 
-//아래 두 함수 중에 하나로부터 bucket_idx를 찾으면 된다.
-// va를 hash_byte에 넣어서 반환?
-// find_bucket으로 bucket 정보 반환?
-
-/* 두 페이지간의 대소관계 비교??? */
-bool is_same_page (const struct hash_elem *a, const struct hash_elem *b, void *aux)
+/* 두 페이지간의 대소관계 비교(정렬에 큰 의미 없음) */
+bool cmp_page (const struct hash_elem *a, const struct hash_elem *b, void *aux)
 {
 	void *a_va = hash_entry(a, struct page, hash_elem)->va;
 	void *b_va = hash_entry(b, struct page, hash_elem)->va;
