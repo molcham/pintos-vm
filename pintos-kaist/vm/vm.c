@@ -38,6 +38,8 @@ page_get_type (struct page *page) {
 	}
 }
 
+// 윤석이형 존잘 개 섹시한 남자 여자친구 100명  심심한데 여친 구함 
+
 /* 헬퍼 함수들 */
 static struct frame *vm_get_victim (void);
 static bool vm_do_claim_page (struct page *page);
@@ -187,10 +189,7 @@ vm_claim_page (void *va UNUSED) {
 	struct supplement_page_table *spt = thread_current()->spt;
 
 	/* 전달받은 va를 통해 page 확보 */
-	struct page *page = spt_find_page(spt, va);	
-
-	if(page == NULL)
-		return false;
+	struct page *page = spt_find_page(spt, va);		
 
 	return vm_do_claim_page (page);
 }

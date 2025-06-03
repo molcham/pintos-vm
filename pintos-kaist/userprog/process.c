@@ -777,7 +777,7 @@ setup_stack (struct intr_frame *if_) {
 	if_->rsp = (uint8_t *)USER_STACK;
 
 	/* 스택 표시 */
-	
+	vm_alloc_page(VM_ANON | VM_MARKER_0, USER_STACK, true);
 
 	/* TODO: Map the stack on stack_bottom and claim the page immediately.
 	 * TODO: If success, set the rsp accordingly.
