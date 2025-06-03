@@ -71,7 +71,7 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 
                 /* TODO: 생성한 페이지를 spt에 넣어주세요. */
 	}
-err:
+// err:
 	return false;
 }
 
