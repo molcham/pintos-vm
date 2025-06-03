@@ -86,14 +86,14 @@ spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 	
 	////////////// 수정 (*dummie_page -> dummie_page) ////////////////
 	struct page dummie_page;
-	dummie_page.va = va;
+	dummie_page.va = va;	
 	
 	/* 동일한 page가 없으면 함수 종료 */
-	if(!hash_find(spt, &dummie_page.hash_elem))
+	if(!hash_find(&spt->hash_table, &dummie_page.hash_elem))
 		return NULL;
 
 	/* 동일한 page의 hash_elem을 통해 page 확보 */
-	struct hash_elem *hl = hash_find(spt, &dummie_page.hash_elem);
+	struct hash_elem *hl = hash_find(&spt->hash_table, &dummie_page.hash_elem);
 	////////////// 수정 (*dummie_page -> dummie_page) ////////////////
 
 	page = hash_entry(hl, struct page, hash_elem);

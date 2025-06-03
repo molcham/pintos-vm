@@ -38,9 +38,6 @@ struct supplemental_page_table {
 };
 #endif
 
-
-
-
 /* A kernel thread or user process.
  *
  * Each thread structure is stored in its own 4 kB page.  The
@@ -124,22 +121,19 @@ struct thread {
 	struct list_elem elem;              /* sleep, ready List element. */
 	struct list_elem d_elem;            /* donation List element. */
 
-	uint64_t *pml4;                     /* Page map level 4 */
 #ifdef USERPROG
-	/* Owned by userprog/process.c. */
+	uint64_t *pml4;                     /* Page map level 4 */
 #endif
+
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */
-	struct supplemental_page_table spt;	
-	
-	/* Owned by userprog/process.c. */
-	// uint64_t *pml4;                     /* Page map level 4 */
+	struct supplemental_page_table spt;		
 #endif
 
 	/* Owned by thread.c. */
 	struct intr_frame tf;               /* Information for switching */
 	struct intr_frame backup_tf;        /* fork 호출 시 유저 스택의 레지스터 값 백업용 */
-	unsigned magic;                     /* Detects stack overflow. */
+	unsigned magic;                     /* 스택 오버플로우를 감지하기 위한 값 (항상 마지막에 배치) */
 };
 
 /* If false (default), use round-robin scheduler.

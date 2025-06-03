@@ -63,7 +63,6 @@ static void usage (void);
 
 static void print_stats (void);
 
-
 int main (void) NO_RETURN;
 
 /* Pintos 메인 프로그램 */
@@ -72,8 +71,8 @@ main (void) {
 	uint64_t mem_end;
 	char **argv;
 
-        /* BSS를 초기화하고 RAM 크기를 얻는다. */
-        bss_init ();
+	/* BSS를 초기화하고 RAM 크기를 얻는다. */
+	bss_init ();
 
 	/* Break command line into arguments and parse options. */
 	argv = read_command_line ();
@@ -257,14 +256,14 @@ run_task (char **argv) {
    NULL 포인터가 나올 때까지 실행한다. */
 static void
 run_actions (char **argv) {
-        /* 개별 동작을 나타내는 구조체. */
+	/* 개별 동작을 나타내는 구조체. */
 	struct action {
                 char *name;                       /* 동작 이름. */
                 int argc;                         /* 동작 이름을 포함한 인자 수. */
                 void (*function) (char **argv);   /* 동작을 수행할 함수. */
 	};
 
-        /* 지원하는 동작 목록. */
+	/* 지원하는 동작 목록 */
 	static const struct action actions[] = {
 		{"run", 2, run_task},
 #ifdef FILESYS
@@ -281,23 +280,22 @@ run_actions (char **argv) {
 		const struct action *a;
 		int i;
 
-                /* 실행할 동작을 찾는다. */
+		/* 실행할 동작을 찾는다. */
 		for (a = actions; ; a++)
 			if (a->name == NULL)
 				PANIC ("unknown action `%s' (use -h for help)", *argv);
 			else if (!strcmp (*argv, a->name))
 				break;
 
-                /* 필요한 인자가 있는지 확인한다. */
+		/* 필요한 인자가 있는지 확인한다. */
 		for (i = 1; i < a->argc; i++)
 			if (argv[i] == NULL)
 				PANIC ("action `%s' requires %d argument(s)", *argv, a->argc - 1);
 
-                /* 동작을 실행한 뒤 다음으로 이동한다. */
+		/* 동작을 실행한 뒤 다음으로 이동한다. */
 		a->function (argv);
 		argv += a->argc;
 	}
-
 }
 
 /* 커널 명령줄 사용법을 출력하고 시스템을 종료한다. */

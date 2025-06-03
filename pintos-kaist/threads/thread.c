@@ -120,7 +120,7 @@ thread_init (void) {
 	/* Init the global thread context */
 	lock_init (&tid_lock);                   // TID 할당을 위한 락 초기화
 	list_init (&ready_list);                 // 준비 상태 스레드 리스트 초기화
-	list_init (&sleep_list);                 // ⏰ sleep 상태 스레드 리스트 초기화	
+	list_init (&sleep_list);                 // sleep 상태 스레드 리스트 초기화	
 	list_init (&destruction_req);            // 제거 요청 대기 스레드 리스트 초기화	
 
 	/* Set up a thread structure for the running thread. */
@@ -698,7 +698,7 @@ init_thread (struct thread *t, const char *name, int priority) {
 	sema_init(&t->exit_sema, 0); /* exit_sema 초기화 */
 	sema_init(&t->load_sema, 0); /* load_sema 초기화 */
 	
-	list_init(&t->children); /* 자식 리스트 초기화 */	
+	list_init(&t->children);  /* 자식 리스트 초기화 */	
 	list_init(&t->donations); /* donation 리스트 초기화 */	
 }
 
