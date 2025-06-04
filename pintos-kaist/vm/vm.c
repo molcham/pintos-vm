@@ -134,10 +134,9 @@ spt_insert_page (struct supplemental_page_table *spt, struct page *page) {
 	if(find_page == NULL)
 	{	
 		if(hash_insert(&spt->hash_table, &page->hash_elem) != NULL)
-			return true;	
+			return false;	
 	}
-
-	return false;
+	return true;
 }
 
 void
