@@ -807,23 +807,16 @@ setup_stack (struct intr_frame *if_) {
 	bool success = false;
 	void *stack_bottom = (void *) (((uint8_t *) USER_STACK) - PGSIZE);	
 
-	/* 유저 스택의 시작점에서 한 페이지 할당 */
-	success = vm_claim_page(stack_bottom);
+	/* 스택용 페이지를 먼저 할당 */
+	success = vm_alloc_page(VM_ANON | VM_MARKER_0, stack_bottom, true);
 
-	/* 할당 실패시 false 반환 */
-	if(!success)
-		return false;
+	/* 할당한 페이지 확보 후 rsp 업데이트 */
+	if (success)
+	{
+		success = vm_claim_page(stack_bottom);
+		if_->rsp = (uint8_t *)USER_STACK;	
+	}		
 	
-	/* 할당 성공 시 rsp 업데이트 */
-	if_->rsp = (uint8_t *)USER_STACK;
-
-	/* 스택 표시 */
-	vm_alloc_page(VM_ANON | VM_MARKER_0, USER_STACK, true);
-
-	/* TODO: Map the stack on stack_bottom and claim the page immediately.
-	 * TODO: If success, set the rsp accordingly.
-	 * TODO: You should mark the page is stack. */
-	/* TODO: Your code goes here */
 	return success;
 }
 
