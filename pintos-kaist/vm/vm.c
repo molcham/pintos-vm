@@ -48,9 +48,8 @@ static struct frame *vm_evict_frame (void);
 /* 초기화 함수를 가지고 미리 생성해 두는 페이지 객체를 만듭니다.
  * 페이지를 직접 만들지 말고 이 함수나 `vm_alloc_page`를 통해 생성하세요. */
 bool
-vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
-		vm_initializer *init, void *aux) {
-
+vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable, vm_initializer *init, void *aux) 
+{
 	/* 정의된 VM 타입이 아니면 에러 처리 */		
 	ASSERT (VM_TYPE(type) != VM_UNINIT);
 
@@ -129,13 +128,16 @@ spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 
 /* PAGE를 spt에 검증 후 삽입합니다. */
 bool
-spt_insert_page (struct supplemental_page_table *spt UNUSED, struct page *page UNUSED) {
-	int result = false;
+spt_insert_page (struct supplemental_page_table *spt, struct page *page) {	
 	
-	if(hash_insert(&spt->hash_table, &page->hash_elem) != NULL)
-		return result;	
+	struct page *find_page = spt_find_page(spt, page->va);
+	if(find_page == NULL)
+	{	
+		if(hash_insert(&spt->hash_table, &page->hash_elem) != NULL)
+			return true;	
+	}
 
-	return result;
+	return false;
 }
 
 void
@@ -276,7 +278,7 @@ void
 supplemental_page_table_init (struct supplemental_page_table *spt UNUSED)
 {	
 	/* SPT 내부의 해시 테이블 초기화 */
-	hash_init(&spt->hash_table, get_hash, cmp_page, NULL);
+	hash_init(&spt->hash_table, get_hash, cmp_page, NULL);	
 }
 
 /* src에서 dst로 supplemental page table을 복사합니다 */

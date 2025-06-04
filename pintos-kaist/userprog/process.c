@@ -224,11 +224,11 @@ process_exec (void *f_name) {
 	
 	palloc_free_page (file_name);	
 	
-        /* 로드에 실패하면 종료 */
+	/* 로드에 실패하면 종료 */
 	if (!success)			
 		sys_exit(-1);	
 
-        /* 준비한 프로세스로 제어를 넘긴다 */
+	/* 준비한 프로세스로 제어를 넘긴다 */
 	do_iret (&_if);
 	NOT_REACHED ();
 }
