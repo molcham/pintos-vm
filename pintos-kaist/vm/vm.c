@@ -80,16 +80,20 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 struct page *
 spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {	    
 	
-	/* 전달 받은 va를 포함한 dummie_page를 만들어 동일한 page가 있는지 확인 */
-	struct page *page = NULL;
+	/* 전달 받은 va를 포함한 dummie_page 생성 */	
 	struct page dummie_page;
-	dummie_page.va = pg_round_down(va);	/* 추후 파악 필요 */	
+	dummie_page.va = pg_round_down(va);	/* va가 포함된 페이지의 시작 주소 정의 */	
 	
-	/* 동일한 page의 hash_elem을 통해 page 확보 */
-	struct hash_elem *hl = hash_find(&spt->hash_table, &dummie_page.hash_elem);
+	/* dummie_page의 hash_elem으로 SPT에 있는 실제 page의 hash_elem 획득 */
+	struct hash_elem *hl = hash_find(&spt->hash_table, &dummie_page.hash_elem);	
 
-	if(page != hash_find(&spt->hash_table, &dummie_page.hash_elem))		
-		page = hash_entry(hl, struct page, hash_elem);
+	/* hl 획득 실패 시 NULL 반환 */
+	if(hl == NULL)
+		return NULL;
+	
+	/* hl 획득 시 page 획득하여 반환 */
+	struct page *page = NULL;
+	page = hash_entry(hl, struct page, hash_elem);
 
 	return page;
 }
@@ -97,15 +101,12 @@ spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 /* PAGE를 spt에 검증 후 삽입합니다. */
 bool
 spt_insert_page (struct supplemental_page_table *spt UNUSED, struct page *page UNUSED) {
-	int succ = false;
+	int result = false;
 	
-	if(spt_find_page(spt, page->va) == NULL)
-	{
-		hash_insert(&spt->hash_table, &page->hash_elem);
-		succ = true;
-	}
+	if(hash_insert(&spt->hash_table, &page->hash_elem) != NULL)
+		return result;	
 
-	return succ;
+	return result;
 }
 
 void

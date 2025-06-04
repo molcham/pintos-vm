@@ -722,17 +722,11 @@ lazy_load_segment (struct page *page, void *aux) {
 	/* TODO: This called when the first page fault occurs on address VA. */
 	/* TODO: VA is available when calling this function. */
 
-	struct aux *info = aux;
-	
-	/* 메모리 한 페이지를 할당한다. */
-	// uint8_t *kpage = palloc_get_page (PAL_USER);
-	// if (kpage == NULL)
-	// 	return false;
+	struct aux *info = aux;	
 
 	/* 이 페이지를 로드한다. */
 	file_seek (info->file, info->ofs);
-	if (file_read (info->file, page, info->page_read_bytes) != (int) info->page_read_bytes) {
-		// palloc_free_page (kpage);
+	if (file_read (info->file, page->frame->kva, info->page_read_bytes) != (int) info->page_read_bytes) {		
 		return false;
 	}
 	memset (page->frame->kva + info->page_read_bytes, 0, info->page_zero_bytes);
@@ -764,12 +758,15 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		/* 이 페이지를 채울 양을 계산한다.
 		 * PAGE_READ_BYTES 바이트를 파일에서 읽고
 		 * 나머지는 PAGE_ZERO_BYTES 바이트를 0으로 채운다. */
-		size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
-		size_t page_zero_bytes = PGSIZE - page_read_bytes;		
+		size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE; /* 한 턴에 최대 1 페이지만큼만 read */
+		size_t page_zero_bytes = PGSIZE - page_read_bytes; /* 0으로 채운 패딩 사이즈는 4KB - page_read_bytes */		
 
-		/* aux 필드 초기화 */
+		/* aux 메모리 할당 후 필드 초기화 */
 		struct aux *aux = malloc(sizeof(struct aux));
-		aux->file = file;
+		if(aux == NULL)
+			return false;
+
+		aux->file = file_reopen(file); /* 추후 확인 필요 */
 		aux->ofs = ofs;
 		aux->page_read_bytes = page_read_bytes;
 		aux->page_zero_bytes = page_zero_bytes;		
