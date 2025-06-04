@@ -693,7 +693,6 @@ setup_stack (struct intr_frame *if_) {
 	}
 	return success;
 }
-#else
 /* load() helpers. */
 static bool install_page (void *upage, void *kpage, bool writable);
 
@@ -714,6 +713,7 @@ install_page (void *upage, void *kpage, bool writable) {
 			&& pml4_set_page (t->pml4, upage, kpage, writable));
 } 
 
+#else
 
 /* 이 아래의 코드는 프로젝트 3 이후에 사용된다.
  * 프로젝트 2에서만 구현하려면 위의 블록을 수정하면 된다. */
@@ -739,14 +739,7 @@ lazy_load_segment (struct page *page, void *aux) {
     }
 	
 	/* 파일의 내용을 복사한 다음, 남은 바이트드를 0으로 세팅 */
-	memset (kva + info->page_read_bytes, 0, info->page_zero_bytes);
-
-	if (!install_page(page, kva, page->writable)) {
-        /* 매핑에 실패하면 프레임 반납, info 해제 후 false 반환 */
-        palloc_free_page(kva);
-        free(info);
-        return false;
-    }	
+	memset (kva + info->page_read_bytes, 0, info->page_zero_bytes);	    	
 	
 	/* info 메모리 해제 */
 	free(info);
