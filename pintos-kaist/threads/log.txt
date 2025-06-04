@@ -1,0 +1,4 @@
+cd build && make check
+make[1]: Entering directory '/home/gabuc54n/pintos_lab_docker/pintos-kaist/threads/build'
+make[1]: Leaving directory '/home/gabuc54n/pintos_lab_docker/pintos-kaist/threads/build'
+../Makefile.kernel:10: recipe for target 'check' failed
