@@ -224,11 +224,11 @@ process_exec (void *f_name) {
 	
 	palloc_free_page (file_name);	
 	
-        /* 로드에 실패하면 종료 */
+	/* 로드에 실패하면 종료 */
 	if (!success)			
 		sys_exit(-1);	
 
-        /* 준비한 프로세스로 제어를 넘긴다 */
+	/* 준비한 프로세스로 제어를 넘긴다 */
 	do_iret (&_if);
 	NOT_REACHED ();
 }
@@ -461,7 +461,7 @@ load (const char *file_name, struct intr_frame *if_) {
 		goto done;
 	}
 
-        /* 프로그램 헤더를 읽는다. */
+	/* 프로그램 헤더를 읽는다. */
 	file_ofs = ehdr.e_phoff;
 	for (int i = 0; i < ehdr.e_phnum; i++) {
 		struct Phdr phdr;
@@ -479,7 +479,7 @@ load (const char *file_name, struct intr_frame *if_) {
 			case PT_PHDR:
 			case PT_STACK:
 			default:
-                                /* 이 세그먼트는 무시한다. */
+				/* 이 세그먼트는 무시한다. */
 				break;
 			case PT_DYNAMIC:
 			case PT_INTERP:
@@ -493,14 +493,14 @@ load (const char *file_name, struct intr_frame *if_) {
 					uint64_t page_offset = phdr.p_vaddr & PGMASK;
 					uint32_t read_bytes, zero_bytes;
 					if (phdr.p_filesz > 0) {
-                                                /* 일반 세그먼트.
-                                                 * 앞부분은 디스크에서 읽고 나머지는 0으로 채운다. */
+						/* 일반 세그먼트.
+						* 앞부분은 디스크에서 읽고 나머지는 0으로 채운다. */
 						read_bytes = page_offset + phdr.p_filesz;
 						zero_bytes = (ROUND_UP (page_offset + phdr.p_memsz, PGSIZE)
 								- read_bytes);
 					} else {
-                                                /* 완전히 0으로 채워야 하는 세그먼트.
-                                                 * 디스크에서 읽어 올 내용은 없다. */
+						/* 완전히 0으로 채워야 하는 세그먼트.
+						* 디스크에서 읽어 올 내용은 없다. */
 						read_bytes = 0;
 						zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
 					}
@@ -623,7 +623,7 @@ validate_segment (const struct Phdr *phdr, struct file *file) {
  * If you want to implement the function for whole project 2, implement it
  * outside of #ifndef macro. */
 
-/* load() helpers. */
+
 
 /* 파일 FILE의 OFS 위치에서 시작하는 세그먼트를 UPAGE 주소에 적재한다.
  * 총 READ_BYTES + ZERO_BYTES 바이트의 가상 메모리를 다음과 같이 준비한다.
@@ -644,32 +644,32 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
 	file_seek (file, ofs);
 	while (read_bytes > 0 || zero_bytes > 0) {
-                /* 이 페이지를 채우기 위해 읽을 양을 계산한다.
-                 * PAGE_READ_BYTES 바이트를 파일에서 읽고
-                 * 남은 PAGE_ZERO_BYTES 바이트는 0으로 채운다. */
+        /* 이 페이지를 채우기 위해 읽을 양을 계산한다.
+		 * PAGE_READ_BYTES 바이트를 파일에서 읽고
+		 * 남은 PAGE_ZERO_BYTES 바이트는 0으로 채운다. */
 		size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
 		size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-                /* 메모리 한 페이지를 할당한다. */
+		/* 메모리 한 페이지를 할당한다. */
 		uint8_t *kpage = palloc_get_page (PAL_USER);
 		if (kpage == NULL)
 			return false;
 
-                /* 이 페이지를 로드한다. */
+		/* 이 페이지를 로드한다. */
 		if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes) {
 			palloc_free_page (kpage);
 			return false;
 		}
 		memset (kpage + page_read_bytes, 0, page_zero_bytes);
 
-                /* 이 페이지를 프로세스 주소 공간에 추가한다. */
+		/* 이 페이지를 프로세스 주소 공간에 추가한다. */
 		if (!install_page (upage, kpage, writable)) {
 			printf("fail\n");
 			palloc_free_page (kpage);
 			return false;
 		}
 
-                /* 다음 페이지로 진행. */
+		/* 다음 페이지로 진행. */
 		read_bytes -= page_read_bytes;
 		zero_bytes -= page_zero_bytes;
 		upage += PGSIZE;
@@ -693,6 +693,8 @@ setup_stack (struct intr_frame *if_) {
 	}
 	return success;
 }
+/* load() helpers. */
+static bool install_page (void *upage, void *kpage, bool writable);
 
 /* Adds a mapping from user virtual address UPAGE to kernel
  * virtual address KPAGE to the page table.
@@ -712,6 +714,7 @@ install_page (void *upage, void *kpage, bool writable) {
 } 
 
 #else
+
 /* 이 아래의 코드는 프로젝트 3 이후에 사용된다.
  * 프로젝트 2에서만 구현하려면 위의 블록을 수정하면 된다. */
 
@@ -720,6 +723,28 @@ lazy_load_segment (struct page *page, void *aux) {
 	/* TODO: Load the segment from the file */
 	/* TODO: This called when the first page fault occurs on address VA. */
 	/* TODO: VA is available when calling this function. */
+
+	/* aux에 담긴 정보를 info 구조체에 담기 */
+	struct aux *info = (struct aux *)aux;	
+	
+	void *kva = page->frame->kva;
+
+	/* 매핑된 kva에 aux에 기록된 위치에서 page_read_bytes만큼 파일에서 읽기(복사) */
+	off_t bytes_read = file_read_at(info->file, kva, info->page_read_bytes, info->ofs);
+    if (bytes_read != (off_t) info->page_read_bytes) {		
+        /* 읽기 실패 시, 할당된 프레임을 반납하고 info 해제 후 false 반환 */        
+        palloc_free_page(kva);
+		free(info);
+        return false;
+    }
+	
+	/* 파일의 내용을 복사한 다음, 남은 바이트드를 0으로 세팅 */
+	memset (kva + info->page_read_bytes, 0, info->page_zero_bytes);	    	
+	
+	/* info 메모리 해제 */
+	free(info);
+
+	return true;
 }
 
 /* 파일 FILE의 OFS 위치에서 시작하는 세그먼트를 UPAGE 주소에 적재한다.
@@ -740,21 +765,30 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 	ASSERT (ofs % PGSIZE == 0);
 
 	while (read_bytes > 0 || zero_bytes > 0) {
-                /* 이 페이지를 채울 양을 계산한다.
-                 * PAGE_READ_BYTES 바이트를 파일에서 읽고
-                 * 나머지는 PAGE_ZERO_BYTES 바이트를 0으로 채운다. */
-		size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
-		size_t page_zero_bytes = PGSIZE - page_read_bytes;
+		/* 이 페이지를 채울 양을 계산한다.
+		 * PAGE_READ_BYTES 바이트를 파일에서 읽고
+		 * 나머지는 PAGE_ZERO_BYTES 바이트를 0으로 채운다. */
+		size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE; /* 한 턴에 최대 1 페이지만큼만 read */
+		size_t page_zero_bytes = PGSIZE - page_read_bytes; /* 0으로 채운 패딩 사이즈는 4KB - page_read_bytes */		
 
-                /* TODO: lazy_load_segment에 정보를 전달할 aux를 설정한다. */
-		void *aux = NULL;
+		/* aux 메모리 할당 후 필드 초기화 */
+		struct aux *aux = malloc(sizeof(struct aux));
+		if(aux == NULL)
+			return false;
+
+		aux->file = file_reopen(file); /* 추후 확인 필요 */
+		aux->ofs = ofs;
+		aux->page_read_bytes = page_read_bytes;
+		aux->page_zero_bytes = page_zero_bytes;		
+
 		if (!vm_alloc_page_with_initializer (VM_ANON, upage,
 					writable, lazy_load_segment, aux))
 			return false;
 
-                /* 다음 주소로 이동. */
-                read_bytes -= page_read_bytes;
+		/* 다음 주소로 이동. */
+		read_bytes -= page_read_bytes;
 		zero_bytes -= page_zero_bytes;
+		ofs += page_read_bytes; /* 오프셋 업데이트 */ 
 		upage += PGSIZE;
 	}
 	return true;
@@ -766,23 +800,16 @@ setup_stack (struct intr_frame *if_) {
 	bool success = false;
 	void *stack_bottom = (void *) (((uint8_t *) USER_STACK) - PGSIZE);	
 
-	/* 유저 스택의 시작점에서 한 페이지 할당 */
-	success = vm_claim_page(stack_bottom);
+	/* 스택용 페이지를 먼저 할당 */
+	success = vm_alloc_page(VM_ANON | VM_MARKER_0, stack_bottom, true);
 
-	/* 할당 실패시 false 반환 */
-	if(!success)
-		return false;
+	/* 할당한 페이지 확보 후 rsp 업데이트 */
+	if (success)
+	{
+		success = vm_claim_page(stack_bottom);
+		if_->rsp = (uint8_t *)USER_STACK;	
+	}		
 	
-	/* 할당 성공 시 rsp 업데이트 */
-	if_->rsp = (uint8_t *)USER_STACK;
-
-	/* 스택 표시 */
-	vm_alloc_page(VM_ANON | VM_MARKER_0, USER_STACK, true);
-
-	/* TODO: Map the stack on stack_bottom and claim the page immediately.
-	 * TODO: If success, set the rsp accordingly.
-	 * TODO: You should mark the page is stack. */
-	/* TODO: Your code goes here */
 	return success;
 }
 

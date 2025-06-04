@@ -10,7 +10,7 @@
 #include "vm/vm.h"
 #include "vm/uninit.h"
 
-static bool uninit_initialize (struct page *page, void *kva);
+bool uninit_initialize (struct page *page, void *kva);
 static void uninit_destroy (struct page *page);
 
 /* 이 구조체는 수정하지 않습니다. */
@@ -42,15 +42,15 @@ uninit_new (struct page *page, void *va, vm_initializer *init,
 }
 
 /* 첫 페이지 폴트 시 페이지를 초기화합니다. */
-static bool
+bool
 uninit_initialize (struct page *page, void *kva) {
 	struct uninit_page *uninit = &page->uninit;
 
-        /* 우선 값을 가져옵니다. page_initialize가 이 값을 덮어쓸 수 있습니다. */
+	/* 우선 값을 가져옵니다. page_initialize가 이 값을 덮어쓸 수 있습니다. */
 	vm_initializer *init = uninit->init;
 	void *aux = uninit->aux;
 
-        /* TODO: 이 함수를 수정해야 할 수도 있습니다. */
+	/* TODO: 이 함수를 수정해야 할 수도 있습니다. */
 	return uninit->page_initializer (page, uninit->type, kva) &&
 		(init ? init (page, aux) : true);
 }

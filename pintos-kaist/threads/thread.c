@@ -23,9 +23,9 @@
 #define THREAD_MAGIC 0xcd6abf4b   // 스택 오버플로 감지용 값
 #define THREAD_BASIC 0xd42df210   // 수정 금지
 #define running_thread() ((struct thread *) (pg_round_down (rrsp ())))	
-		// 현재 CPU의 rsp 값을 페이지 경계까지 내림하여 해당 스레드 포인터 반환
+// 현재 CPU의 rsp 값을 페이지 경계까지 내림하여 해당 스레드 포인터 반환
 #define is_thread(t) ((t) != NULL && (t)->magic == THREAD_MAGIC)
-		// 유효한 thread 구조체인지 확인하는 매크로 (스택 오버플로 감지 목적)
+// 유효한 thread 구조체인지 확인하는 매크로 (스택 오버플로 감지 목적)
 #define TIME_SLICE 4              // 각 스레드에 할당할 타이머 틱 수
 
 
@@ -120,7 +120,7 @@ thread_init (void) {
 	/* Init the global thread context */
 	lock_init (&tid_lock);                   // TID 할당을 위한 락 초기화
 	list_init (&ready_list);                 // 준비 상태 스레드 리스트 초기화
-	list_init (&sleep_list);                 // ⏰ sleep 상태 스레드 리스트 초기화	
+	list_init (&sleep_list);                 // sleep 상태 스레드 리스트 초기화	
 	list_init (&destruction_req);            // 제거 요청 대기 스레드 리스트 초기화	
 
 	/* Set up a thread structure for the running thread. */
@@ -698,7 +698,7 @@ init_thread (struct thread *t, const char *name, int priority) {
 	sema_init(&t->exit_sema, 0); /* exit_sema 초기화 */
 	sema_init(&t->load_sema, 0); /* load_sema 초기화 */
 	
-	list_init(&t->children); /* 자식 리스트 초기화 */	
+	list_init(&t->children);  /* 자식 리스트 초기화 */	
 	list_init(&t->donations); /* donation 리스트 초기화 */	
 }
 

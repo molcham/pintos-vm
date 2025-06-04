@@ -8,67 +8,61 @@
 #include "filesys/file.h"
 #endif
 
-/* Element type.
-
-   This must be an unsigned integer type at least as wide as int.
-
-   Each bit represents one bit in the bitmap.
-   If bit 0 in an element represents bit K in the bitmap,
-   then bit 1 in the element represents bit K+1 in the bitmap,
-   and so on. */
+/* 요소 타입.
+   최소한 int 만큼의 크기를 갖는 부호 없는 정수형이어야 합니다.
+   이 타입의 각 비트는 비트맵의 한 비트를 의미합니다.
+   예를 들어 한 요소의 비트 0이 비트맵의 K번째 비트라면
+   비트 1은 K+1번째 비트를 나타내는 식으로 순차적으로 대응됩니다. */
 typedef unsigned long elem_type;
 
-/* Number of bits in an element. */
+/* 한 요소가 담고 있는 비트 수 */
 #define ELEM_BITS (sizeof (elem_type) * CHAR_BIT)
 
-/* From the outside, a bitmap is an array of bits.  From the
-   inside, it's an array of elem_type (defined above) that
-   simulates an array of bits. */
+/* 한국어 번역:
+   외부에서 보면 비트맵은 단순한 비트들의 배열이지만,
+   내부 구현은 위에서 정의한 elem_type 배열로 이루어져
+   비트 배열을 흉내 낸 구조입니다. */
 struct bitmap {
-	size_t bit_cnt;     /* Number of bits. */
-	elem_type *bits;    /* Elements that represent bits. */
+	size_t bit_cnt;     /* 비트맵이 표현하는 전체 비트 수 */
+	elem_type *bits;    /* 실제 비트를 담고 있는 요소들의 배열 */
 };
 
-/* Returns the index of the element that contains the bit
-   numbered BIT_IDX. */
+/* BIT_IDX 번 비트를 담고 있는 요소의 인덱스를 반환 */
 static inline size_t
 elem_idx (size_t bit_idx) {
 	return bit_idx / ELEM_BITS;
 }
 
-/* Returns an elem_type where only the bit corresponding to
-   BIT_IDX is turned on. */
+/* BIT_IDX 비트에 해당하는 위치만 켜진 elem_type 값을 반환 */
 static inline elem_type
 bit_mask (size_t bit_idx) {
 	return (elem_type) 1 << (bit_idx % ELEM_BITS);
 }
 
-/* Returns the number of elements required for BIT_CNT bits. */
+/* BIT_CNT 비트를 표현하기 위해 필요한 요소 개수를 반환 */
 static inline size_t
 elem_cnt (size_t bit_cnt) {
 	return DIV_ROUND_UP (bit_cnt, ELEM_BITS);
 }
 
-/* Returns the number of bytes required for BIT_CNT bits. */
+/* BIT_CNT 비트를 저장하기 위해 필요한 바이트 수를 반환 */
 static inline size_t
 byte_cnt (size_t bit_cnt) {
 	return sizeof (elem_type) * elem_cnt (bit_cnt);
 }
 
-/* Returns a bit mask in which the bits actually used in the last
-   element of B's bits are set to 1 and the rest are set to 0. */
+/* 비트맵 마지막 요소에서 실제로 사용되는 비트는 1로, 
+   남는 비트는 0으로 설정한 비트 마스크를 반환 */
 static inline elem_type
 last_mask (const struct bitmap *b) {
 	int last_bits = b->bit_cnt % ELEM_BITS;
 	return last_bits ? ((elem_type) 1 << last_bits) - 1 : (elem_type) -1;
 }
 
-/* Creation and destruction. */
+/* 비트맵을 생성하고 파괴하는 함수들 */
 
-/* Initializes B to be a bitmap of BIT_CNT bits
-   and sets all of its bits to false.
-   Returns true if success, false if memory allocation
-   failed. */
+/* BIT_CNT 크기의 비트맵 B를 초기화하고 모든 비트를 0으로 설정합니다.
+   성공하면 비트맵을 반환하고, 메모리 할당 실패 시 NULL을 반환합니다. */
 struct bitmap *
 bitmap_create (size_t bit_cnt) {
 	struct bitmap *b = malloc (sizeof *b);
@@ -84,9 +78,9 @@ bitmap_create (size_t bit_cnt) {
 	return NULL;
 }
 
-/* Creates and returns a bitmap with BIT_CNT bits in the
-   BLOCK_SIZE bytes of storage preallocated at BLOCK.
-   BLOCK_SIZE must be at least bitmap_needed_bytes(BIT_CNT). */
+/* BLOCK에 미리 할당된 BLOCK_SIZE 바이트 공간을 이용하여
+   BIT_CNT 비트를 담는 비트맵을 생성하여 반환합니다.
+   BLOCK_SIZE는 최소한 bitmap_needed_bytes(BIT_CNT)보다 커야 합니다. */
 struct bitmap *
 bitmap_create_in_buf (size_t bit_cnt, void *block, size_t block_size UNUSED) {
 	struct bitmap *b = block;
@@ -99,16 +93,15 @@ bitmap_create_in_buf (size_t bit_cnt, void *block, size_t block_size UNUSED) {
 	return b;
 }
 
-/* Returns the number of bytes required to accomodate a bitmap
-   with BIT_CNT bits (for use with bitmap_create_in_buf()). */
+/* bitmap_create_in_buf() 사용 시 BIT_CNT 비트를 담기 위해
+   필요한 전체 바이트 수를 계산하여 반환 */
 size_t
 bitmap_buf_size (size_t bit_cnt) {
 	return sizeof (struct bitmap) + byte_cnt (bit_cnt);
 }
 
-/* Destroys bitmap B, freeing its storage.
-   Not for use on bitmaps created by
-   bitmap_create_preallocated(). */
+/* bitmap_create()로 생성한 비트맵 B의 메모리를 해제합니다.
+   bitmap_create_preallocated()로 생성한 비트맵에는 사용하지 않습니다. */
 void
 bitmap_destroy (struct bitmap *b) {
 	if (b != NULL) {
@@ -117,17 +110,17 @@ bitmap_destroy (struct bitmap *b) {
 	}
 }
 
-/* Bitmap size. */
+/* 비트맵의 전체 크기에 관한 함수 */
 
-/* Returns the number of bits in B. */
+/* 비트맵 B가 가지고 있는 비트 수를 반환 */
 size_t
 bitmap_size (const struct bitmap *b) {
 	return b->bit_cnt;
 }
 
-/* Setting and testing single bits. */
+/* 하나의 비트를 설정하거나 확인하는 함수들 */
 
-/* Atomically sets the bit numbered IDX in B to VALUE. */
+/* IDX 번째 비트를 VALUE 값으로 원자적으로 변경 */
 void
 bitmap_set (struct bitmap *b, size_t idx, bool value) {
 	ASSERT (b != NULL);
@@ -138,45 +131,41 @@ bitmap_set (struct bitmap *b, size_t idx, bool value) {
 		bitmap_reset (b, idx);
 }
 
-/* Atomically sets the bit numbered BIT_IDX in B to true. */
+/* BIT_IDX 번째 비트를 원자적으로 1로 설정 */
 void
 bitmap_mark (struct bitmap *b, size_t bit_idx) {
 	size_t idx = elem_idx (bit_idx);
 	elem_type mask = bit_mask (bit_idx);
 
-	/* This is equivalent to `b->bits[idx] |= mask' except that it
-	   is guaranteed to be atomic on a uniprocessor machine.  See
-	   the description of the OR instruction in [IA32-v2b]. */
+	/* `b->bits[idx] |= mask` 와 같지만 단일 프로세서 환경에서
+		원자성을 보장하기 위해 어셈블리 명령을 사용합니다.
+		자세한 내용은 [IA32-v2b]의 OR 명령 설명을 참고하세요. */
 	asm ("lock orq %1, %0" : "=m" (b->bits[idx]) : "r" (mask) : "cc");
 }
 
-/* Atomically sets the bit numbered BIT_IDX in B to false. */
+/* BIT_IDX 번째 비트를 원자적으로 0으로 설정 */
 void
 bitmap_reset (struct bitmap *b, size_t bit_idx) {
 	size_t idx = elem_idx (bit_idx);
 	elem_type mask = bit_mask (bit_idx);
 
-	/* This is equivalent to `b->bits[idx] &= ~mask' except that it
-	   is guaranteed to be atomic on a uniprocessor machine.  See
-	   the description of the AND instruction in [IA32-v2a]. */
+	/* `b->bits[idx] &= ~mask` 와 같은 동작을 하지만 단일 프로세서에서
+		원자성을 위해 어셈블리 AND 명령을 사용합니다. [IA32-v2a] 참고 */
 	asm ("lock andq %1, %0" : "=m" (b->bits[idx]) : "r" (~mask) : "cc");
 }
 
-/* Atomically toggles the bit numbered IDX in B;
-   that is, if it is true, makes it false,
-   and if it is false, makes it true. */
+/* IDX 번째 비트가 1이면 0으로, 0이면 1로 원자적으로 뒤집습니다. */
 void
 bitmap_flip (struct bitmap *b, size_t bit_idx) {
 	size_t idx = elem_idx (bit_idx);
 	elem_type mask = bit_mask (bit_idx);
 
-	/* This is equivalent to `b->bits[idx] ^= mask' except that it
-	   is guaranteed to be atomic on a uniprocessor machine.  See
-	   the description of the XOR instruction in [IA32-v2b]. */
+	/* `b->bits[idx] ^= mask` 와 같은 역할을 하지만 단일 프로세서에서
+		원자성을 보장하기 위해 XOR 명령을 사용합니다. */
 	asm ("lock xorq %1, %0" : "=m" (b->bits[idx]) : "r" (mask) : "cc");
 }
 
-/* Returns the value of the bit numbered IDX in B. */
+/* 비트맵 B에서 IDX 번째 비트의 값을 반환 */
 bool
 bitmap_test (const struct bitmap *b, size_t idx) {
 	ASSERT (b != NULL);
@@ -184,9 +173,9 @@ bitmap_test (const struct bitmap *b, size_t idx) {
 	return (b->bits[elem_idx (idx)] & bit_mask (idx)) != 0;
 }
 
-/* Setting and testing multiple bits. */
+/* 여러 비트를 한꺼번에 설정하거나 검사 */
 
-/* Sets all bits in B to VALUE. */
+/* 비트맵 B의 모든 비트를 VALUE 값으로 채웁니다. */
 void
 bitmap_set_all (struct bitmap *b, bool value) {
 	ASSERT (b != NULL);
@@ -194,7 +183,7 @@ bitmap_set_all (struct bitmap *b, bool value) {
 	bitmap_set_multiple (b, 0, bitmap_size (b), value);
 }
 
-/* Sets the CNT bits starting at START in B to VALUE. */
+/* START 위치부터 CNT개의 비트를 VALUE로 설정 */
 void
 bitmap_set_multiple (struct bitmap *b, size_t start, size_t cnt, bool value) {
 	size_t i;
@@ -207,8 +196,7 @@ bitmap_set_multiple (struct bitmap *b, size_t start, size_t cnt, bool value) {
 		bitmap_set (b, start + i, value);
 }
 
-/* Returns the number of bits in B between START and START + CNT,
-   exclusive, that are set to VALUE. */
+/* START부터 CNT개의 비트 중 VALUE와 같은 값의 비트 개수를 반환 */
 size_t
 bitmap_count (const struct bitmap *b, size_t start, size_t cnt, bool value) {
 	size_t i, value_cnt;
@@ -224,8 +212,7 @@ bitmap_count (const struct bitmap *b, size_t start, size_t cnt, bool value) {
 	return value_cnt;
 }
 
-/* Returns true if any bits in B between START and START + CNT,
-   exclusive, are set to VALUE, and false otherwise. */
+/* 구간 [START, START+CNT) 중 VALUE 값인 비트가 하나라도 있으면 true 반환 */
 bool
 bitmap_contains (const struct bitmap *b, size_t start, size_t cnt, bool value) {
 	size_t i;
@@ -240,33 +227,28 @@ bitmap_contains (const struct bitmap *b, size_t start, size_t cnt, bool value) {
 	return false;
 }
 
-/* Returns true if any bits in B between START and START + CNT,
-   exclusive, are set to true, and false otherwise.*/
+/* 구간 내에 1로 설정된 비트가 하나라도 있으면 true */
 bool
 bitmap_any (const struct bitmap *b, size_t start, size_t cnt) {
 	return bitmap_contains (b, start, cnt, true);
 }
 
-/* Returns true if no bits in B between START and START + CNT,
-   exclusive, are set to true, and false otherwise.*/
+/* 구간 내에 1로 설정된 비트가 전혀 없으면 true */
 bool
 bitmap_none (const struct bitmap *b, size_t start, size_t cnt) {
 	return !bitmap_contains (b, start, cnt, true);
 }
 
-/* Returns true if every bit in B between START and START + CNT,
-   exclusive, is set to true, and false otherwise. */
+/* 구간의 모든 비트가 1이면 true, 아니면 false */
 bool
 bitmap_all (const struct bitmap *b, size_t start, size_t cnt) {
 	return !bitmap_contains (b, start, cnt, false);
 }
 
-/* Finding set or unset bits. */
+/* 특정 값의 연속된 비트를 찾는 함수들 */
 
-/* Finds and returns the starting index of the first group of CNT
-   consecutive bits in B at or after START that are all set to
-   VALUE.
-   If there is no such group, returns BITMAP_ERROR. */
+/* START 위치 이후에서 VALUE 값으로 연속된 CNT개의 비트를 찾아
+   그 시작 인덱스를 반환합니다. 찾지 못하면 BITMAP_ERROR 반환 */
 size_t
 bitmap_scan (const struct bitmap *b, size_t start, size_t cnt, bool value) {
 	ASSERT (b != NULL);
@@ -282,13 +264,10 @@ bitmap_scan (const struct bitmap *b, size_t start, size_t cnt, bool value) {
 	return BITMAP_ERROR;
 }
 
-/* Finds the first group of CNT consecutive bits in B at or after
-   START that are all set to VALUE, flips them all to !VALUE,
-   and returns the index of the first bit in the group.
-   If there is no such group, returns BITMAP_ERROR.
-   If CNT is zero, returns 0.
-   Bits are set atomically, but testing bits is not atomic with
-   setting them. */
+/* START 이후에서 VALUE 값으로 CNT개 연속된 비트를 찾아 모두 반전시키고
+   그 첫 번째 비트의 인덱스를 반환합니다.
+   없으면 BITMAP_ERROR를, CNT가 0이면 0을 반환합니다.
+   비트 변경은 원자적으로 이루어지지만 검사 과정은 원자적이지 않습니다. */
 size_t
 bitmap_scan_and_flip (struct bitmap *b, size_t start, size_t cnt, bool value) {
 	size_t idx = bitmap_scan (b, start, cnt, value);
@@ -297,17 +276,16 @@ bitmap_scan_and_flip (struct bitmap *b, size_t start, size_t cnt, bool value) {
 	return idx;
 }
 
-/* File input and output. */
+/* 파일과 비트맵 간의 입출력 관련 함수 */
 
 #ifdef FILESYS
-/* Returns the number of bytes needed to store B in a file. */
+/* 비트맵 B를 파일로 저장하는 데 필요한 바이트 수 반환 */
 size_t
 bitmap_file_size (const struct bitmap *b) {
 	return byte_cnt (b->bit_cnt);
 }
 
-/* Reads B from FILE.  Returns true if successful, false
-   otherwise. */
+/* FILE에서 비트맵 B를 읽어오며 성공 여부를 반환 */
 bool
 bitmap_read (struct bitmap *b, struct file *file) {
 	bool success = true;
@@ -319,8 +297,7 @@ bitmap_read (struct bitmap *b, struct file *file) {
 	return success;
 }
 
-/* Writes B to FILE.  Return true if successful, false
-   otherwise. */
+/* 비트맵 B를 FILE에 기록하고 성공 여부를 반환 */
 bool
 bitmap_write (const struct bitmap *b, struct file *file) {
 	off_t size = byte_cnt (b->bit_cnt);
@@ -328,9 +305,9 @@ bitmap_write (const struct bitmap *b, struct file *file) {
 }
 #endif /* FILESYS */
 
-/* Debugging. */
+/* 디버깅을 위한 보조 함수 */
 
-/* Dumps the contents of B to the console as hexadecimal. */
+/* 비트맵 B의 내용을 16진수 형태로 콘솔에 출력 */
 void
 bitmap_dump (const struct bitmap *b) {
 	hex_dump (0, b->bits, byte_cnt (b->bit_cnt), false);

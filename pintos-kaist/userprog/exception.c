@@ -116,11 +116,11 @@ page_fault (struct intr_frame *f) {
 
 	fault_addr = (void *) rcr2();
 
-        /* CR2 값을 읽기 전까지 잠시 꺼 두었던 인터럽트를 다시 활성화한다. */
+	/* CR2 값을 읽기 전까지 잠시 꺼 두었던 인터럽트를 다시 활성화한다. */
 	intr_enable ();
 
 
-        /* 원인을 파악한다. */
+	/* 원인을 파악한다. */
 	not_present = (f->error_code & PF_P) == 0;
 	write = (f->error_code & PF_W) != 0;
 	user = (f->error_code & PF_U) != 0;
