@@ -169,10 +169,22 @@ vm_evict_frame (void) {
  * 프레임을 얻기 위해 기존 프레임을 내보낸 뒤 유효한 주소를 반환합니다.*/
 static struct frame *
 vm_get_frame (void) {
-	struct frame *new_frame = NULL;
-	new_frame->kva = palloc_get_page(PAL_USER | PAL_ZERO);
 	
-	/* 할당할 frame이 없으면 교체 로직 호출(추가 구현) */
+	/* frame 구조체와 실제 물리 페이지를 준비한다. */
+    struct frame *new_frame = malloc (sizeof (struct frame));
+    if (new_frame == NULL)
+		return NULL;
+
+    new_frame->kva = palloc_get_page (PAL_USER | PAL_ZERO);
+    if (new_frame->kva == NULL) {
+		free (new_frame);
+		return NULL;
+    }
+
+    /* frame 구조체 초기 값 설정 */
+    new_frame->page = NULL;
+
+    /* 할당할 frame이 없으면 교체 로직 호출(추가 구현) */
 	
 
 	/* 할당받은 frame을 frame table에 삽입 */
@@ -206,8 +218,8 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 	 * 4. 커널 주소 접근 */
 
 	/* 쓰기 권한 에러, 또는 커널 주소 접근이면 함수 종료 */
-	if(write == true || user == false)	
-		return false;
+	// if(write == true || user == false)	
+	// 	return false;
 
 	struct supplemental_page_table *spt UNUSED = &thread_current ()->spt;
 	struct page *page = NULL;
