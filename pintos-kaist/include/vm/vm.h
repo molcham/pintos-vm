@@ -6,6 +6,7 @@
 #include "threads/init.h"
 #include "userprog/process.h"
 #include "threads/mmu.h"
+#include "threads/thread.h"
 
 enum vm_type {
 	/* 페이지가 아직 초기화되지 않음 */
@@ -93,11 +94,6 @@ struct page_operations {
 #define swap_out(page) (page)->operations->swap_out (page)
 #define destroy(page) \
 	if ((page)->operations->destroy) (page)->operations->destroy (page)
-
-/* 현재 프로세스의 메모리 공간을 표현한 구조체.
- * 특별한 설계를 강요하지 않으니,
- * 원하는 방식으로 자유롭게 꾸며도 됩니다. */
-struct supplemental_page_table;
 
 void supplemental_page_table_init (struct supplemental_page_table *spt);
 bool supplemental_page_table_copy (struct supplemental_page_table *dst,
