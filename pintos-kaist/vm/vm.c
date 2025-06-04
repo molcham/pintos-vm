@@ -53,11 +53,34 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 
         /* upage가 이미 사용 중인지 확인합니다. */
 	if (spt_find_page (spt, upage) == NULL) {
-                /* TODO: 페이지를 만들고 VM 타입에 맞는 initializer를 얻은 뒤
-                 * TODO: uninit_new를 호출하여 "uninit" 페이지 구조체를 생성합니다.
-                 * TODO: 호출 후 필요한 필드를 수정해야 합니다. */
+    /* TODO: 페이지를 만들고 VM 타입에 맞는 initializer를 얻은 뒤
+    * TODO: uninit_new를 호출하여 "uninit" 페이지 구조체를 생성합니다.
+    * TODO: 호출 후 필요한 필드를 수정해야 합니다. */
+    /* TODO: 생성한 페이지를 spt에 넣어주세요. */
+    
+	bool (*page_initializer)(struct page *,enum vm_type,void *kva);
+	struct page *page =malloc(sizeof(struct page));
 
-                /* TODO: 생성한 페이지를 spt에 넣어주세요. */
+
+	switch(VM_TYPE(type))
+	{
+	case VM_ANON:
+	   page_initializer =anon_initializer;
+	   break;	
+	case VM_FILE:
+	   page_initializer=file_backed_initializer;
+	   break;
+	default:
+	   free(page);
+	   goto err;
+	   break;
+	}
+	uninit_new(page,upage,init,type,aux,page_initializer);
+	page->writable=writable;
+    
+
+	return spt_insert_page(spt,page);
+
 	}
 err:
 	return false;
@@ -214,8 +237,11 @@ vm_handle_wp (struct page *page UNUSED) {
 bool
 vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 		bool user UNUSED, bool write UNUSED, bool not_present UNUSED) {
+
+
 	struct supplemental_page_table *spt UNUSED = &thread_current ()->spt;
-	struct page *page = NULL; 
+
+	struct page *page = spt_find_page(spt,addr);
 	
 	//1. spt_find_page
 	//=> uninit_initialize() 호출
@@ -227,7 +253,9 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 		*/
         /* TODO: 필요한 로직을 작성합니다
 		 */
-
+    if(page == NULL){
+		return false;
+	}
 	return vm_do_claim_page (page);
 	//프레임 할당 + 내용로딩 + 페이지 테이블 연결
 }
@@ -278,7 +306,11 @@ vm_do_claim_page (struct page *page) {
 	frame->page = page;
 	page->frame = frame;
 
-        /* TODO: "페이지의 VA"와 "프레임의 PA"를 매핑하는 항목을 삽입하세요. */
+    /* TODO: "페이지의 VA"와 "프레임의 PA"를 매핑하는 항목을 삽입하세요. */
+
+	if(!pml4_set_page(thread_current()->pml4, page->va, frame->kva,page->writable)){
+		PANIC("TODO");
+	}
 
 	return swap_in (page, frame->kva);
 }

@@ -15,8 +15,8 @@ Putting 'exit' into the file system...
 Executing 'exit':
 exit: exit(-1)
 Execution of 'exit' complete.
-Timer: 61 ticks
-Thread: 33 idle ticks, 27 kernel ticks, 1 user ticks
+Timer: 58 ticks
+Thread: 33 idle ticks, 25 kernel ticks, 0 user ticks
 hd0:0: 0 reads, 0 writes
 hd0:1: 39 reads, 232 writes
 hd1:0: 102 reads, 0 writes

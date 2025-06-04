@@ -713,11 +713,48 @@ install_page (void *upage, void *kpage, bool writable) {
 /* 이 아래의 코드는 프로젝트 3 이후에 사용된다.
  * 프로젝트 2에서만 구현하려면 위의 블록을 수정하면 된다. */
 
+
+/*
+======================================================
+[lazy_load_segment]
+
+-해당 va에서 "첫 페이지 폴트"가 발생했을 경우 호출
+ => 즉 , 늦게 작동하는 load_segment
+
+======================================================
+*/
+
 static bool
 lazy_load_segment (struct page *page, void *aux) {
 	/* TODO: Load the segment from the file */
 	/* TODO: This called when the first page fault occurs on address VA. */
 	/* TODO: VA is available when calling this function. */
+
+
+	struct file_info *fi=aux;
+	struct file *file=fi->file;
+	off_t ofs =fi->ofs;
+
+	uint8_t *kva =page ->frame->kva;
+	size_t page_read_bytes =fi ->read_bytes <PGSIZE ? fi->read_bytes : PGSIZE ;
+	size_t page_zero_bytes =PGSIZE-page_zero_bytes;
+
+
+	bool success = false; 
+
+	//파일 안에서 데이터 읽기
+
+	file_seek(file,ofs); //우리 기존 코드랑 다르게 따로 변수 설정
+	if(file_read(file,kva,page_read_bytes)==(int)page_read_bytes){
+		memset(kva+page_read_bytes,0,page_zero_bytes);
+		success=true;
+	}
+    
+    free(aux);
+
+	return success;
+
+
 }
 
 /* 파일 FILE의 OFS 위치에서 시작하는 세그먼트를 UPAGE 주소에 적재한다.
@@ -747,29 +784,43 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
 		size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-                /* 
-				
-				TODO: lazy_load_segment에 정보를 전달할 aux를 설정한다.
-				
-				
-				 */
-		void *aux = NULL;
-		if (!vm_alloc_page_with_initializer (VM_ANON, upage,
-					writable, lazy_load_segment, aux))
+		struct file_info *aux =malloc(sizeof(struct file_info));
+		if(aux == NULL) return false;
+
+		/* 
+		TODO: lazy_load_segment에 정보를 전달할 aux를 설정한다.
+		*/
+
+		aux->file =file_reopen(file);
+		aux->ofs =ofs;
+		aux->upage;
+		aux->read_bytes =read_bytes;
+		aux->zero_bytes =zero_bytes;
+		aux->writable =writable;
+
+		if (!vm_alloc_page_with_initializer (VM_ANON, upage,writable, lazy_load_segment, aux))
 			return false;
 
-                /* 다음 주소로 이동. */
-                read_bytes -= page_read_bytes;
+        /* 다음 주소로 이동. */
+        read_bytes -= page_read_bytes;
 		zero_bytes -= page_zero_bytes;
+		ofs+=page_read_bytes;
 		upage += PGSIZE;
 	}
 	return true;
 }
 
-/* USER_STACK 위치에 한 페이지 크기의 스택을 생성한다. 성공 시 true를 반환한다. */
+/* USER_STACK 위치에 한 페이지 크기의 스택을 생성한다. 성공 시 true를 반환한다.
+
+ - 첫 번째 스택 페이지는 즉시 할당하고 명령줄 인자를 올려야 한다.
+ - 초기의 스택은 아직 아무것도 없는 공간
+ - 함수 호출이 일어나면 스택이 더 아래로 확장된다.
+   =>스택을 사용할 준비를 하려면 스택의 가장 아래에 페이지를 미리 할당
+
+ */
 static bool
 setup_stack (struct intr_frame *if_) {
-	bool success = false;
+	// bool success = false;
 	void *stack_bottom = (void *) (((uint8_t *) USER_STACK) - PGSIZE);
 
 	/* TODO: Map the stack on stack_bottom and claim the page immediately.
@@ -777,7 +828,20 @@ setup_stack (struct intr_frame *if_) {
 	 * TODO: You should mark the page is stack. */
 	/* TODO: Your code goes here */
 
-	return success;
+
+	if(!vm_alloc_page(VM_ANON,stack_bottom,true)){
+		return false;
+	}
+	if(!vm_claim_page(stack_bottom)){
+		return false;
+	}
+
+	if_->rsp=USER_STACK; 
+	
+	
+	//스택의 현재 꼭대기를 가리킨다.
+    //이후 이 rsp는 push나 함수 호출이 일어나면 rsp가 아래로 내려간다.
+	return true;
 }
 
 #endif /* VM */

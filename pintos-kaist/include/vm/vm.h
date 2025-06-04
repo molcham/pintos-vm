@@ -60,6 +60,9 @@ struct page {
 
 	/* Your implementation */
 
+    
+	bool writable;
+
 	//이 페이지가 어떤 종류인지에 따라 구조체 선택(uninit/anon/file등) => type
 	union {
 		struct uninit_page uninit; //초기화 안된 페이지
@@ -84,6 +87,24 @@ The representation of "frame"
 struct frame {
 	void *kva; //커널(kernel) 가상(virtual) 주소(address)
 	struct page *page; //이 프레임과 매핑된 가상 페이지
+};
+
+
+/*
+-lazy_load_segment 의 인자에는 없는 파일의 정보를 받아 
+ 메모리에 올리는 데 사용 한다. 
+
+
+ aux가 void * 포인터를 가지기 때문에 file_info 라는 구조체를 가리키게 함
+*/
+
+struct file_info{
+	struct file *file;
+	off_t ofs;
+	uint8_t *upage;
+	uint32_t read_bytes;
+	uint32_t zero_bytes;
+	bool writable;
 };
 
 

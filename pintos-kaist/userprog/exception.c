@@ -154,7 +154,6 @@ page_fault (struct intr_frame *f) {
 	if (vm_try_handle_fault (f, fault_addr, user, write, not_present))
 		return;
 #endif
-
         /* 페이지 폴트 횟수를 기록한다. */
         page_fault_cnt++;
 
