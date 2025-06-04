@@ -725,25 +725,18 @@ lazy_load_segment (struct page *page, void *aux) {
 	struct aux *info = aux;
 	
 	/* 메모리 한 페이지를 할당한다. */
-	uint8_t *kpage = palloc_get_page (PAL_USER);
-	if (kpage == NULL)
-		return false;
+	// uint8_t *kpage = palloc_get_page (PAL_USER);
+	// if (kpage == NULL)
+	// 	return false;
 
 	/* 이 페이지를 로드한다. */
 	file_seek (info->file, info->ofs);
-	if (file_read (info->file, kpage, info->page_read_bytes) != (int) info->page_read_bytes) {
-		palloc_free_page (kpage);
+	if (file_read (info->file, page, info->page_read_bytes) != (int) info->page_read_bytes) {
+		// palloc_free_page (kpage);
 		return false;
 	}
-	memset (kpage + info->page_read_bytes, 0, info->page_zero_bytes);
-
-	/* 이 페이지를 프로세스 주소 공간에 추가한다. */
-	if (!install_page (page, kpage, info->writable)) {
-		printf("fail\n");
-		palloc_free_page (kpage);
-		return false;
-	}	
-
+	memset (page->frame->kva + info->page_read_bytes, 0, info->page_zero_bytes);
+	
 	/* info 메모리 해제 */
 	free(info);
 
@@ -779,8 +772,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		aux->file = file;
 		aux->ofs = ofs;
 		aux->page_read_bytes = page_read_bytes;
-		aux->page_zero_bytes = page_zero_bytes;
-		aux->writable = writable;
+		aux->page_zero_bytes = page_zero_bytes;		
 
 		if (!vm_alloc_page_with_initializer (VM_ANON, upage,
 					writable, lazy_load_segment, aux))

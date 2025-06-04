@@ -78,24 +78,18 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 
 /* spt에서 VA에 해당하는 페이지를 찾아 반환합니다. 실패 시 NULL을 돌려줍니다. */
 struct page *
-spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
-	struct page *page = NULL;
-    
+spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {	    
+	
 	/* 전달 받은 va를 포함한 dummie_page를 만들어 동일한 page가 있는지 확인 */
-	
-	////////////// 수정 (*dummie_page -> dummie_page) ////////////////
+	struct page *page = NULL;
 	struct page dummie_page;
-	dummie_page.va = va;	
+	dummie_page.va = pg_round_down(va);	/* 추후 파악 필요 */	
 	
-	/* 동일한 page가 없으면 함수 종료 */
-	if(!hash_find(&spt->hash_table, &dummie_page.hash_elem))
-		return NULL;
-
 	/* 동일한 page의 hash_elem을 통해 page 확보 */
 	struct hash_elem *hl = hash_find(&spt->hash_table, &dummie_page.hash_elem);
-	////////////// 수정 (*dummie_page -> dummie_page) ////////////////
 
-	page = hash_entry(hl, struct page, hash_elem);
+	if(page != hash_find(&spt->hash_table, &dummie_page.hash_elem))		
+		page = hash_entry(hl, struct page, hash_elem);
 
 	return page;
 }
