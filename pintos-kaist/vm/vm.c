@@ -52,7 +52,7 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 		vm_initializer *init, void *aux) {
 
 	/* 정의된 VM 타입이 아니면 에러 처리 */		
-	ASSERT (VM_TYPE(type) != VM_UNINIT)
+	ASSERT (VM_TYPE(type) != VM_UNINIT);
 
 	struct supplemental_page_table *spt = &thread_current ()->spt;
 
@@ -61,18 +61,47 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 	 * TODO: 호출 후 필요한 필드를 수정해야 합니다. */
 	/* TODO: 생성한 페이지를 spt에 넣어주세요. */
 
-	/* upage가 이미 사용 중인지 확인합니다. */
-	if (spt_find_page (spt, upage) == NULL) {		
-		
-		struct page new_page;
-		new_page.writable = false;
+	/* upage가 이미 사용 중인지 확인 */
+	if (spt_find_page (spt, upage) == NULL) {				
 
-		uninit_new(&new_page, upage, init, type, aux, new_page.uninit.page_initializer);
-		bool result = spt_insert_page(spt, &new_page);
+		bool (*page_initializer)(struct page *, enum vm_type, void *kva);
+      	struct page *new_page = malloc(sizeof(struct page));
+
+	    if (new_page == NULL)      	
+        	goto err;      	
+
+		/* 타입별로 적절한 initializer를 선택 */	
+      	switch (VM_TYPE(type))
+      	{
+			case VM_ANON:
+				page_initializer = anon_initializer;
+				break;		
+
+			case VM_FILE:
+				page_initializer = file_backed_initializer;
+				break;
+				
+			default:
+				free(new_page);
+				goto err;
+				break;
+      	}				
 		
-		return result;              
+		/* 새로 할당한 page 구조체를 uninit 상태로 초기화 */
+		uninit_new(new_page, upage, init, type, aux, page_initializer);
+		new_page->writable = writable;
+		
+		/* SPT 삽입, 실패 시 메모리 해제 후 false 반환 */
+		if(!spt_insert_page(spt, new_page))
+		{
+			free(new_page);
+			goto err;
+		}
+		
+		return true;              
 	}
-// err:
+
+	err:
 	return false;
 }
 
@@ -140,7 +169,7 @@ vm_evict_frame (void) {
 static struct frame *
 vm_get_frame (void) {
 	struct frame *new_frame = NULL;
-	new_frame = palloc_get_page(PAL_USER | PAL_ZERO);
+	new_frame->kva = palloc_get_page(PAL_USER | PAL_ZERO);
 	
 	/* 할당할 frame이 없으면 교체 로직 호출(추가 구현) */
 	

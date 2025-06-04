@@ -623,8 +623,7 @@ validate_segment (const struct Phdr *phdr, struct file *file) {
  * If you want to implement the function for whole project 2, implement it
  * outside of #ifndef macro. */
 
-/* load() helpers. */
-static bool install_page (void *upage, void *kpage, bool writable);
+
 
 /* 파일 FILE의 OFS 위치에서 시작하는 세그먼트를 UPAGE 주소에 적재한다.
  * 총 READ_BYTES + ZERO_BYTES 바이트의 가상 메모리를 다음과 같이 준비한다.
@@ -694,6 +693,9 @@ setup_stack (struct intr_frame *if_) {
 	}
 	return success;
 }
+#else
+/* load() helpers. */
+static bool install_page (void *upage, void *kpage, bool writable);
 
 /* Adds a mapping from user virtual address UPAGE to kernel
  * virtual address KPAGE to the page table.
@@ -712,7 +714,7 @@ install_page (void *upage, void *kpage, bool writable) {
 			&& pml4_set_page (t->pml4, upage, kpage, writable));
 } 
 
-#else
+
 /* 이 아래의 코드는 프로젝트 3 이후에 사용된다.
  * 프로젝트 2에서만 구현하려면 위의 블록을 수정하면 된다. */
 
@@ -722,14 +724,29 @@ lazy_load_segment (struct page *page, void *aux) {
 	/* TODO: This called when the first page fault occurs on address VA. */
 	/* TODO: VA is available when calling this function. */
 
-	struct aux *info = aux;	
+	/* aux에 담긴 정보를 info 구조체에 담기 */
+	struct aux *info = (struct aux *)aux;	
+	
+	void *kva = page->frame->kva;
 
-	/* 이 페이지를 로드한다. */
-	file_seek (info->file, info->ofs);
-	if (file_read (info->file, page->frame->kva, info->page_read_bytes) != (int) info->page_read_bytes) {		
-		return false;
-	}
-	memset (page->frame->kva + info->page_read_bytes, 0, info->page_zero_bytes);
+	/* 매핑된 kva에 aux에 기록된 위치에서 page_read_bytes만큼 파일에서 읽기(복사) */
+	off_t bytes_read = file_read_at(info->file, kva, info->page_read_bytes, info->ofs);
+    if (bytes_read != (off_t) info->page_read_bytes) {		
+        /* 읽기 실패 시, 할당된 프레임을 반납하고 info 해제 후 false 반환 */        
+        palloc_free_page(kva);
+		free(info);
+        return false;
+    }
+	
+	/* 파일의 내용을 복사한 다음, 남은 바이트드를 0으로 세팅 */
+	memset (kva + info->page_read_bytes, 0, info->page_zero_bytes);
+
+	if (!install_page(page, kva, page->writable)) {
+        /* 매핑에 실패하면 프레임 반납, info 해제 후 false 반환 */
+        palloc_free_page(kva);
+        free(info);
+        return false;
+    }	
 	
 	/* info 메모리 해제 */
 	free(info);
