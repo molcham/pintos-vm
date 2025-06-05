@@ -51,13 +51,11 @@ syscall_handler (struct intr_frame *f) {
 
 	int code = f->R.rax;
 	int num = f->R.rdi;
-	int tid = thread_current()->tid;
+	int tid = thread_current()->tid;	
 	
-	///////////////// 추가 /////////////////
 	#ifdef VM
-	thread_current()->thr_rsp = f->rsp;
-	#endif
-	///////////////// 추가 /////////////////
+	thread_current()->stk_rsp = f->rsp;
+	#endif	
 
 	switch (f->R.rax)
 	{

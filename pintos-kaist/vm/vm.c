@@ -242,16 +242,17 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 	/* 페이지 폴트를 일으킨 va를 가지고 spt에서 page 탐색 */
 	page = spt_find_page(spt, addr);	
 	
-	/* 프로세스에 할당된 가상 주소가 아닐 경우 함수 종료 */
+	/* 스택 성장을 요하는 fault_addr 처리 */
 	if(page == NULL)
-	{
-		///////////////// 추가 ///////////////// 만약 스택성장을 감지한다면,
-		if (addr >= curr->stk_bottom - PGSIZE)
+	{				
+		/* USER_STACK에서 할당 받은 메모리의 경계(stk_bottom)에서 1 PGSIZE 더 확장한 영역 내에 있는 fault_addr 처리 */
+		if (addr < USER_STACK && addr > curr->stk_bottom - PGSIZE)
 		{
 			vm_stack_growth(addr);
-		}
-		///////////////// 추가 /////////////////
-		else return false;		
+			return true;
+		}		
+		else 
+			return false;		
 	}
 
 	if (write && !page->writable)

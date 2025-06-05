@@ -798,7 +798,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 static bool
 setup_stack (struct intr_frame *if_) {
 	bool success = false;
-	thread_current()->stk_bottom = (void *) (((uint8_t *) USER_STACK) - PGSIZE);
+	thread_current()->stk_bottom = (uint64_t *)USER_STACK - PGSIZE;
 	void *stack_bottom = thread_current()->stk_bottom;	
 	
 	/* 스택용 페이지를 먼저 할당 */
@@ -808,7 +808,7 @@ setup_stack (struct intr_frame *if_) {
 	if (success)
 	{
 		success = vm_claim_page(stack_bottom);
-		if_->rsp = (uint8_t *)USER_STACK;
+		if_->rsp = (uint64_t *)USER_STACK;
 	}		
 	
 	return success;
