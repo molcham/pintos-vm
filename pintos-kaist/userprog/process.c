@@ -67,7 +67,7 @@ process_create_initd (const char *file_name) {
 static void
 initd (void *f_name) {
 #ifdef VM
-	supplemental_page_table_init (&thread_current ()->spt);
+	supplemental_page_table_init (&thread_current()->spt);
 #endif
 
 	process_init ();
@@ -807,7 +807,11 @@ setup_stack (struct intr_frame *if_) {
 	if (success)
 	{
 		success = vm_claim_page(stack_bottom);
-		if_->rsp = (uint8_t *)USER_STACK;	
+		if_->rsp = (uint8_t *)USER_STACK;
+
+		///////////////// 추가 /////////////////
+		// thread_current()->thr_rsp = if_->rsp; 	
+		///////////////// 추가 /////////////////
 	}		
 	
 	return success;

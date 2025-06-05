@@ -1,5 +1,5 @@
 /* vm.c: 가상 메모리 객체를 위한 일반적인 인터페이스입니다. */
-
+/* test */
 #include "threads/malloc.h"
 #include "vm/vm.h"
 #include "vm/inspect.h"
@@ -38,7 +38,7 @@ page_get_type (struct page *page) {
 	}
 }
 
-// 윤석이형 존잘 개 섹시한 남자 여자친구 100명  심심한데 여친 구함 
+// 윤석이형 존잘 개 섹시한 남자 여자친구 100명 심심한데 여친 구함 
 
 /* 헬퍼 함수들 */
 static struct frame *vm_get_victim (void);
@@ -198,6 +198,16 @@ vm_get_frame (void) {
 /* 스택을 확장합니다. */
 static void
 vm_stack_growth (void *addr UNUSED) {
+	// 디버깅 용
+	printf("ddd\n");
+	uintptr_t rsp = thread_current()->thr_rsp;
+
+	bool success = vm_alloc_page(VM_ANON | VM_MARKER_0, rsp, true);
+
+	if (success)
+	{
+		vm_claim_page(addr);
+	}
 }
 
 /* write_protected 페이지에서의 fault 처리 */
@@ -232,7 +242,18 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 
 	/* 프로세스에 할당된 가상 주소가 아닐 경우 함수 종료 */
 	if(page == NULL)
-		return false;		
+	{
+		///////////////// 추가 ///////////////// 만약 스택성장을 감지한다면,
+		if (addr > USER_STACK - PGSIZE)
+		{
+			vm_stack_growth(addr);
+		}
+		///////////////// 추가 /////////////////
+		else return false;		
+	}
+
+	if (write && !page->writable)
+		return false; // 쓰기 권한이 없는 페이지에 write 접근
 
 	return vm_do_claim_page (page);
 }
@@ -276,8 +297,10 @@ vm_do_claim_page (struct page *page) {
 	
 	struct thread *t = thread_current ();
 
-	/* 해당 가상 주소에 이미 페이지가 없는지 확인한 뒤 매핑한다. */
-	bool result = (pml4_get_page (t->pml4, page->va) == NULL && pml4_set_page (t->pml4, page->va, frame->kva, page->writable));
+	// /* 해당 가상 주소에 이미 페이지가 없는지 확인한 뒤 매핑한다. */
+	bool result = (pml4_get_page (t->pml4, page->va) == NULL &&
+				   pml4_set_page (t->pml4, page->va, frame->kva, page->writable));
+	
 	if(result == false)	
 		return false;
 
@@ -311,6 +334,7 @@ uint64_t get_hash (const struct hash_elem *e, void *aux)
 	struct page *upage = hash_entry(e, struct page, hash_elem);
 	void *va = upage->va;
 
+	return hash_bytes(&va, sizeof(va));	
 	return hash_bytes(&va, sizeof(va));	
 }
 
