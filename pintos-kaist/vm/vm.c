@@ -200,12 +200,16 @@ static void
 vm_stack_growth (void *addr UNUSED) {
 	
 	struct thread *curr = thread_current();	
+	
+	/* fault_addr을 내림한 주소로 SPT에 삽입 및 프레임 매핑 */
 	void *stack_addr = pg_round_down(addr);
 
+	/* SPT에 uninit 타입으로 삽입 */
 	bool success = vm_alloc_page(VM_ANON | VM_MARKER_0, stack_addr, true);
 
 	if (success)
 	{
+		/* SPT에 삽입 직후 프레임에 매핑하여 메모리에 로드 (Lazy Load X) */
 		if(vm_claim_page(stack_addr))
 			curr->stk_bottom -= PGSIZE; 		
 	}
@@ -246,7 +250,7 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 	if(page == NULL)
 	{				
 		/* USER_STACK에서 할당 받은 메모리의 경계(stk_bottom)에서 1 PGSIZE 더 확장한 영역 내에 있는 fault_addr 처리 */
-		if (addr < USER_STACK && addr > curr->stk_bottom - PGSIZE)
+		if (addr < USER_STACK && addr > curr->stk_bottom - (PGSIZE / 2))
 		{
 			vm_stack_growth(addr);
 			return true;

@@ -20,8 +20,8 @@ Executing 'mmap-off':
 (mmap-off) try to mmap with offset 0x1000: FAILED
 mmap-off: exit(1)
 Execution of 'mmap-off' complete.
-Timer: 314 ticks
-Thread: 203 idle ticks, 108 kernel ticks, 3 user ticks
+Timer: 334 ticks
+Thread: 226 idle ticks, 105 kernel ticks, 3 user ticks
 hd0:0: 0 reads, 0 writes
 hd0:1: 112 reads, 15904 writes
 hd1:0: 7933 reads, 0 writes

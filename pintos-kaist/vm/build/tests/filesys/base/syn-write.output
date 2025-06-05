@@ -21,8 +21,8 @@ child-syn-wrt: exit(-1)
 (syn-write) exec child 1 of 10: "child-syn-wrt 0": FAILED
 syn-write: exit(1)
 Execution of 'syn-write' complete.
-Timer: 65 ticks
-Thread: 37 idle ticks, 26 kernel ticks, 2 user ticks
+Timer: 66 ticks
+Thread: 38 idle ticks, 26 kernel ticks, 2 user ticks
 hd0:0: 0 reads, 0 writes
 hd0:1: 131 reads, 512 writes
 hd1:0: 226 reads, 0 writes
