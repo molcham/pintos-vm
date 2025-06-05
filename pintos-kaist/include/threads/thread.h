@@ -130,8 +130,8 @@ struct thread {
 	struct supplemental_page_table spt;		
 
 	///////////////// 추가 ///////////////// 
-	uintptr_t thr_rsp;
-	uintptr_t stk_bottom;
+	uintptr_t *thr_rsp;
+	uintptr_t *stk_bottom;
 	///////////////// 추가 /////////////////
 #endif
 

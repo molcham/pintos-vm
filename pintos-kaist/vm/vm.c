@@ -38,7 +38,7 @@ page_get_type (struct page *page) {
 	}
 }
 
-// 윤석이형 존잘 개 섹시한 남자 여자친구 100명 심심한데 여친 구함 
+
 
 /* 헬퍼 함수들 */
 static struct frame *vm_get_victim (void);
@@ -133,7 +133,9 @@ spt_insert_page (struct supplemental_page_table *spt, struct page *page) {
 	struct page *find_page = spt_find_page(spt, page->va);
 	if(find_page == NULL)
 	{	
-		if(hash_insert(&spt->hash_table, &page->hash_elem) != NULL)
+		printf("\n%p, %p\n", (void *)page, (void *)page->va);		
+
+		if(hash_insert(&spt->hash_table, &page->hash_elem) != NULL)		
 			return false;	
 	}
 	return true;
@@ -198,8 +200,7 @@ vm_get_frame (void) {
 /* 스택을 확장합니다. */
 static void
 vm_stack_growth (void *addr UNUSED) {
-	// 디버깅 용
-	printf("ddd\n");
+	
 	struct thread *curr = thread_current();
 	// uintptr_t rsp = curr->thr_rsp;
 
@@ -209,7 +210,7 @@ vm_stack_growth (void *addr UNUSED) {
 	{
 		if(vm_claim_page(addr))
 		{
-			curr->stk_bottom = curr->stk_bottom - PGSIZE; 
+			curr->stk_bottom -= PGSIZE; 
 		}
 	}
 }
@@ -241,12 +242,9 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 
 	/* 스왑-아웃된 상태면 스왑-인 (추후 구현) */
 	
-	addr = pg_round_down(addr);
-
+	
 	/* 페이지 폴트를 일으킨 va를 가지고 spt에서 page 탐색 */
-	page = spt_find_page(spt, addr);
-	// 디버깅용
-	uintptr_t x = USER_STACK - PGSIZE;
+	page = spt_find_page(spt, addr);	
 	
 	/* 프로세스에 할당된 가상 주소가 아닐 경우 함수 종료 */
 	if(page == NULL)
