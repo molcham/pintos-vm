@@ -200,12 +200,13 @@ static void
 vm_stack_growth (void *addr UNUSED) {
 	
 	struct thread *curr = thread_current();	
+	void *stack_addr = pg_round_down(addr);
 
-	bool success = vm_alloc_page(VM_ANON | VM_MARKER_0, addr, true);
+	bool success = vm_alloc_page(VM_ANON | VM_MARKER_0, stack_addr, true);
 
 	if (success)
 	{
-		if(vm_claim_page(addr))
+		if(vm_claim_page(stack_addr))
 			curr->stk_bottom -= PGSIZE; 		
 	}
 }
