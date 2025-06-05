@@ -198,6 +198,16 @@ vm_get_frame (void) {
 /* 스택을 확장합니다. */
 static void
 vm_stack_growth (void *addr UNUSED) {
+	// 디버깅 용
+	printf("ddd\n");
+	uintptr_t rsp = thread_current()->thr_rsp;
+
+	bool success = vm_alloc_page(VM_ANON | VM_MARKER_0, rsp, true);
+
+	if (success)
+	{
+		vm_claim_page(addr);
+	}
 }
 
 /* write_protected 페이지에서의 fault 처리 */
@@ -232,14 +242,18 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 
 	/* 프로세스에 할당된 가상 주소가 아닐 경우 함수 종료 */
 	if(page == NULL)
-		return false;		
+	{
+		///////////////// 추가 ///////////////// 만약 스택성장을 감지한다면,
+		if (addr > USER_STACK - PGSIZE)
+		{
+			vm_stack_growth(addr);
+		}
+		///////////////// 추가 /////////////////
+		else return false;		
+	}
 
-	//////////////// 추가 ////////////////
-	if (page == NULL)
-		return false; // 잘못된 접근이거나, 매핑되지 않은 주소
 	if (write && !page->writable)
 		return false; // 쓰기 권한이 없는 페이지에 write 접근
-	//////////////// 추가 ////////////////
 
 	return vm_do_claim_page (page);
 }
