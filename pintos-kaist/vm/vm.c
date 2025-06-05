@@ -200,13 +200,17 @@ static void
 vm_stack_growth (void *addr UNUSED) {
 	// 디버깅 용
 	printf("ddd\n");
-	uintptr_t rsp = thread_current()->thr_rsp;
+	struct thread *curr = thread_current();
+	// uintptr_t rsp = curr->thr_rsp;
 
-	bool success = vm_alloc_page(VM_ANON | VM_MARKER_0, rsp, true);
+	bool success = vm_alloc_page(VM_ANON | VM_MARKER_0, addr, true);
 
 	if (success)
 	{
-		vm_claim_page(addr);
+		if(vm_claim_page(addr))
+		{
+			curr->stk_bottom = curr->stk_bottom - PGSIZE; 
+		}
 	}
 }
 
@@ -231,20 +235,24 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 	// if(write == true || user == false)	
 	// 	return false;
 
-	struct supplemental_page_table *spt UNUSED = &thread_current ()->spt;
+	struct thread *curr = thread_current();
+	struct supplemental_page_table *spt UNUSED = &curr->spt;
 	struct page *page = NULL;
 
 	/* 스왑-아웃된 상태면 스왑-인 (추후 구현) */
 	
+	addr = pg_round_down(addr);
 
 	/* 페이지 폴트를 일으킨 va를 가지고 spt에서 page 탐색 */
 	page = spt_find_page(spt, addr);
-
+	// 디버깅용
+	uintptr_t x = USER_STACK - PGSIZE;
+	
 	/* 프로세스에 할당된 가상 주소가 아닐 경우 함수 종료 */
 	if(page == NULL)
 	{
 		///////////////// 추가 ///////////////// 만약 스택성장을 감지한다면,
-		if (addr > USER_STACK - PGSIZE)
+		if (addr >= curr->stk_bottom - PGSIZE)
 		{
 			vm_stack_growth(addr);
 		}

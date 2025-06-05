@@ -800,6 +800,8 @@ setup_stack (struct intr_frame *if_) {
 	bool success = false;
 	void *stack_bottom = (void *) (((uint8_t *) USER_STACK) - PGSIZE);	
 
+	thread_current()->stk_bottom = stack_bottom;
+	
 	/* 스택용 페이지를 먼저 할당 */
 	success = vm_alloc_page(VM_ANON | VM_MARKER_0, stack_bottom, true);
 

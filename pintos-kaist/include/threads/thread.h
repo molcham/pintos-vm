@@ -131,6 +131,7 @@ struct thread {
 
 	///////////////// 추가 ///////////////// 
 	uintptr_t thr_rsp;
+	uintptr_t stk_bottom;
 	///////////////// 추가 /////////////////
 #endif
 
