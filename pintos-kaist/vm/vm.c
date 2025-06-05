@@ -132,9 +132,7 @@ spt_insert_page (struct supplemental_page_table *spt, struct page *page) {
 	
 	struct page *find_page = spt_find_page(spt, page->va);
 	if(find_page == NULL)
-	{	
-		printf("\n%p, %p\n", (void *)page, (void *)page->va);		
-
+	{		
 		if(hash_insert(&spt->hash_table, &page->hash_elem) != NULL)		
 			return false;	
 	}
@@ -201,17 +199,14 @@ vm_get_frame (void) {
 static void
 vm_stack_growth (void *addr UNUSED) {
 	
-	struct thread *curr = thread_current();
-	// uintptr_t rsp = curr->thr_rsp;
+	struct thread *curr = thread_current();	
 
 	bool success = vm_alloc_page(VM_ANON | VM_MARKER_0, addr, true);
 
 	if (success)
 	{
 		if(vm_claim_page(addr))
-		{
-			curr->stk_bottom -= PGSIZE; 
-		}
+			curr->stk_bottom -= PGSIZE; 		
 	}
 }
 
@@ -339,8 +334,7 @@ uint64_t get_hash (const struct hash_elem *e, void *aux)
 {
 	struct page *upage = hash_entry(e, struct page, hash_elem);
 	void *va = upage->va;
-
-	return hash_bytes(&va, sizeof(va));	
+	
 	return hash_bytes(&va, sizeof(va));	
 }
 
