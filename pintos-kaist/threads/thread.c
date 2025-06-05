@@ -694,6 +694,11 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->next_fd = 3;
 	t->fdt = NULL;
 
+	////////////////////////////
+	t->stk_bottom = NULL;	// 프로세스마다 갖는 스택 바텀.
+	////////////////////////////
+
+
 	sema_init(&t->wait_sema, 0); /* wait_sema 초기화 */
 	sema_init(&t->exit_sema, 0); /* exit_sema 초기화 */
 	sema_init(&t->load_sema, 0); /* load_sema 초기화 */
