@@ -4,6 +4,7 @@
 #include "vm/vm.h"
 #include "vm/inspect.h"
 
+
 /* Global frame table. */
 struct list frame_table;
 
@@ -369,7 +370,7 @@ supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
 		}
 		else
 		{
-			vm_alloc_page(temp_page->operations->type, temp_page->va, temp_page->writable);
+			vm_alloc_page_with_initializer(temp_page->operations->type, temp_page->va, temp_page->writable, NULL, NULL);
 		}
 
 		// vm_alloc_page를 통해서 새 페이지 할당,
