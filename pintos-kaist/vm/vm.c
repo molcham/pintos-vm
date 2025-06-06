@@ -14,15 +14,14 @@ vm_init (void) {
 	vm_anon_init ();
 	vm_file_init ();
 
-	/* frame table 초기화 */
-	list_init(&frame_table);
-
 #ifdef EFILESYS  /* For project 4 */
 	pagecache_init ();
 #endif
 	register_inspect_intr ();
         /* 위의 줄은 수정하지 마세요. */
         /* TODO: 여기에 코드를 작성하세요. */
+	/* frame table 초기화 */
+	list_init(&frame_table);
 }
 
 /* 페이지의 유형을 얻습니다. 초기화된 이후에 어떤 타입이 될지
@@ -132,15 +131,10 @@ spt_insert_page (struct supplemental_page_table *spt, struct page *page) {
 	
 	struct page *find_page = spt_find_page(spt, page->va);
 	if(find_page == NULL)
-	{	
-		/////////////// 추가 /////////////// 
-		page->va = pg_round_down(page->va);
-		/////////////// 추가 ///////////////
-
-		if(hash_insert(&spt->hash_table, &page->hash_elem) != NULL)
-		{
+	{		
+		if(hash_insert(&spt->hash_table, &page->hash_elem) != NULL)		
 			return false;	
-		}
+		
 	}
 	return true;
 }
@@ -170,9 +164,9 @@ vm_evict_frame (void) {
 	return NULL;
 }
 
-/* palloc()을 이용해 프레임을 얻습니다. 남는 페이지가 없다면 하나를
- * 제거하여 돌려줍니다. 즉 사용자 풀 메모리가 가득 차도 이 함수는
- * 프레임을 얻기 위해 기존 프레임을 내보낸 뒤 유효한 주소를 반환합니다.*/
+/* palloc()을 이용해 프레임을 얻습니다. 남는 프레임이 없다면 하나를
+ * 해제하여 돌려줍니다. 즉 사용자 풀 메모리가 가득 차도 이 함수는
+ * 프레임을 얻기 위해 기존 페이지를 해제한 뒤 유효한 주소를 반환합니다.*/
 static struct frame *
 vm_get_frame (void) {
 	
@@ -204,17 +198,20 @@ vm_get_frame (void) {
 /* 스택을 확장합니다. */
 static void
 vm_stack_growth (void *addr UNUSED) {
-	struct thread *curr = thread_current();
-	// uintptr_t rsp = curr->thr_rsp;
+	
+	struct thread *curr = thread_current();	
+	
+	/* fault_addr을 내림한 주소로 SPT에 삽입 및 프레임 매핑 */
+	void *stack_addr = pg_round_down(addr);
 
-	bool success = vm_alloc_page(VM_ANON | VM_MARKER_0, addr, true);
+	/* SPT에 uninit 타입으로 삽입 */
+	bool success = vm_alloc_page(VM_ANON | VM_MARKER_0, stack_addr, true);
 
 	if (success)
 	{
-		if(vm_claim_page(addr))
-		{
-			curr->stk_bottom = curr->stk_bottom - PGSIZE; 
-		}
+		/* SPT에 삽입 직후 프레임에 매핑하여 메모리에 로드 (Lazy Load X) */
+		if(vm_claim_page(stack_addr))
+			curr->stk_bottom -= PGSIZE; 		
 	}
 }
 
@@ -245,25 +242,21 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 
 	/* 스왑-아웃된 상태면 스왑-인 (추후 구현) */
 	
-	// addr = pg_round_down(addr);
-
-	/* 페이지 폴트를 일으킨 va를 가지고 spt에서 page 탐색 */
-	// printf("in try_handle_fault\n");
-	page = spt_find_page(spt, addr);
-	// 디버깅용
-	uintptr_t x = USER_STACK - PGSIZE;
 	
-	/* 프로세스에 할당된 가상 주소가 아닐 경우 함수 종료 */
+	/* 페이지 폴트를 일으킨 va를 가지고 spt에서 page 탐색 */
+	page = spt_find_page(spt, addr);	
+	
+	/* 스택 성장을 요하는 fault_addr 처리 */
 	if(page == NULL)
-	{
-		///////////////// 추가 ///////////////// 만약 스택성장을 감지한다면,
-		if (addr >= curr->stk_bottom - PGSIZE )
+	{				
+		/* USER_STACK에서 할당 받은 메모리의 경계(stk_bottom)에서 1 PGSIZE 더 확장한 영역 내에 있는 fault_addr 처리 */
+		if (addr < USER_STACK && addr > curr->stk_bottom - (PGSIZE / 2))
 		{
 			vm_stack_growth(addr);
 			return true;
-		}
-		///////////////// 추가 /////////////////
-		else return false;		
+		}		
+		else 
+			return false;		
 	}
 
 	if (write && !page->writable)	// !!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -334,6 +327,71 @@ supplemental_page_table_init (struct supplemental_page_table *spt UNUSED)
 bool
 supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
 		struct supplemental_page_table *src UNUSED) {
+	
+	// 흐름 정리
+	// 1. src 내부 모든 버킷에 있는 모든 페이지들을 다 복사해와야함.
+	// 2. 근데 그 페이지들이 프레임이 존재한다면 프레임과의 연결 끊기.
+	// 3. 복사해와야 하니, 빈 도화지 같이 vm_alloc_page를 통해서 새 페이지를 할당.
+	 
+	
+	
+	// 이건 복사중이라 중간에 인터럽트 들어오면 안됨.
+	enum intr_level old_level = intr_disable();
+	// 이건 초기화를 통해 고정되는 정보가 아니기 때문에, 복사해온다.
+	dst->hash_table.aux = src->hash_table.aux;
+	
+	// 순회를 위한 구조체
+	struct hash_iterator src_hi; 
+
+	// hash_iterator의 초기화 과정.
+	hash_first(&src_hi, &src->hash_table);
+	
+	// 계속 찾고 끝까지 다 하면 반복문 빠져나감.
+	while (hash_next(&src_hi))
+	{
+		struct page *temp_page =  hash_entry(hash_cur(&src_hi), struct page, hash_elem);
+
+
+		/* aux 메모리 할당 후 필드 초기화 */
+		// struct aux *aux = malloc(sizeof(struct aux));
+		// if(aux == NULL)
+		// 	return false;
+
+		// aux = temp_page->aux;
+
+		// if (!vm_alloc_page_with_initializer (VM_ANON, upage,
+		// 			writable, lazy_load_segment, aux))
+		// 	return false;
+
+		if (temp_page->operations->type == VM_UNINIT)
+		{
+			vm_alloc_page(temp_page->uninit.type, temp_page->va, temp_page->writable);
+		}
+		else
+		{
+			vm_alloc_page(temp_page->operations->type, temp_page->va, temp_page->writable);
+		}
+
+		// vm_alloc_page를 통해서 새 페이지 할당,
+		// 할당한 페이지 spt에 넣기 모두 실행
+	}
+
+	// 제대로 hash_table이 복제가 되었다면 elem_cnt가 같겠지?
+	bool success = (dst->hash_table.elem_cnt == src->hash_table.elem_cnt ? true : false);
+	intr_set_level(old_level);
+
+	if (success)
+		return true;
+	else
+	{
+		return false;
+	}
+}
+
+void page_clear (struct hash_elem *e, void *aux)
+{
+	struct page *temp_page = hash_entry(e, struct page, hash_elem);
+	vm_dealloc_page(temp_page);
 }
 
 /* supplemental page table이 가진 자원을 해제합니다 */
@@ -341,6 +399,13 @@ void
 supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
         /* TODO: 스레드가 보유한 모든 supplemental_page_table을 파괴하고
          * TODO: 수정된 내용을 저장소에 모두 반영하세요. */
+	
+	// 파괴왕. 일단 액션함수 없이 해볼까? -> 액션함수 없으면 모든 테스트 케이스들이 터짐.
+	hash_clear (&spt->hash_table, page_clear);
+
+	// 1. 왜 spt 내부 변수들만 해제하고, spt는 해제하면 안되는가?
+	// 2. clear 와 destroy 의 차이?
+
 }
 
 /* hash_elem으로 bucket_idx 획득 */
@@ -348,8 +413,7 @@ uint64_t get_hash (const struct hash_elem *e, void *aux)
 {
 	struct page *upage = hash_entry(e, struct page, hash_elem);
 	void *va = upage->va;
-
-	return hash_bytes(&va, sizeof(va));	
+	
 	return hash_bytes(&va, sizeof(va));	
 }
 

@@ -126,11 +126,12 @@ page_fault (struct intr_frame *f) {
 	user = (f->error_code & PF_U) != 0;
 
 #ifdef VM
+		int tid1 = (int)thread_current()->tid;	
         /* 프로젝트 3 이후 버전을 위한 처리. */
 	if (vm_try_handle_fault (f, fault_addr, user, write, not_present))
 		return;
 #endif
-
+		int tid2 = (int)thread_current()->tid;
         /* 페이지 폴트 횟수를 기록한다. */
         page_fault_cnt++;
 

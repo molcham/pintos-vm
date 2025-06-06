@@ -188,7 +188,9 @@ __do_fork (void *aux) {
 
 	process_init ();	
 
-        /* 마지막으로 새로 생성한 프로세스로 전환한다. */
+    /* 마지막으로 새로 생성한 프로세스로 전환한다. */
+	tid_t tid = thread_current()->tid;
+
 	if (succ)
 	{
 		if_.R.rax = 0;
@@ -798,9 +800,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 static bool
 setup_stack (struct intr_frame *if_) {
 	bool success = false;
-	void *stack_bottom = (void *) (((uint8_t *) USER_STACK) - PGSIZE);	
-
-	thread_current()->stk_bottom = stack_bottom;
+	thread_current()->stk_bottom = (uint64_t *)USER_STACK - PGSIZE;
+	void *stack_bottom = thread_current()->stk_bottom;	
 	
 	/* 스택용 페이지를 먼저 할당 */
 	success = vm_alloc_page(VM_ANON | VM_MARKER_0, stack_bottom, true);
@@ -809,11 +810,7 @@ setup_stack (struct intr_frame *if_) {
 	if (success)
 	{
 		success = vm_claim_page(stack_bottom);
-		if_->rsp = (uint8_t *)USER_STACK;
-
-		///////////////// 추가 /////////////////
-		// thread_current()->thr_rsp = if_->rsp; 	
-		///////////////// 추가 /////////////////
+		if_->rsp = (uint64_t *)USER_STACK;
 	}		
 	
 	return success;

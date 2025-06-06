@@ -128,11 +128,9 @@ struct thread {
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */
 	struct supplemental_page_table spt;		
-
-	///////////////// 추가 ///////////////// 
-	uintptr_t thr_rsp;
-	uintptr_t stk_bottom;
-	///////////////// 추가 /////////////////
+	
+	uint64_t *stk_rsp;
+	uint64_t *stk_bottom;	
 #endif
 
 	/* Owned by thread.c. */
