@@ -14,15 +14,14 @@ vm_init (void) {
 	vm_anon_init ();
 	vm_file_init ();
 
-	/* frame table 초기화 */
-	list_init(&frame_table);
-
 #ifdef EFILESYS  /* For project 4 */
 	pagecache_init ();
 #endif
 	register_inspect_intr ();
         /* 위의 줄은 수정하지 마세요. */
         /* TODO: 여기에 코드를 작성하세요. */
+	/* frame table 초기화 */
+	list_init(&frame_table);
 }
 
 /* 페이지의 유형을 얻습니다. 초기화된 이후에 어떤 타입이 될지
@@ -37,8 +36,6 @@ page_get_type (struct page *page) {
 			return ty;
 	}
 }
-
-
 
 /* 헬퍼 함수들 */
 static struct frame *vm_get_victim (void);
@@ -117,7 +114,9 @@ spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 
 	/* hl 획득 실패 시 NULL 반환 */
 	if(hl == NULL)
+	{		
 		return NULL;
+	}
 	
 	/* hl 획득 시 page 획득하여 반환 */
 	struct page *page = NULL;
@@ -135,6 +134,7 @@ spt_insert_page (struct supplemental_page_table *spt, struct page *page) {
 	{		
 		if(hash_insert(&spt->hash_table, &page->hash_elem) != NULL)		
 			return false;	
+		
 	}
 	return true;
 }
@@ -259,7 +259,7 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 			return false;		
 	}
 
-	if (write && !page->writable)
+	if (write && !page->writable)	// !!!!!!!!!!!!!!!!!!!!!!!!!!
 		return false; // 쓰기 권한이 없는 페이지에 write 접근
 
 	return vm_do_claim_page (page);
@@ -278,6 +278,7 @@ bool
 vm_claim_page (void *va UNUSED) {			
 	struct supplemental_page_table *spt = &thread_current()->spt;
 
+	// printf("in vm_claim_page\n");
 	/* 전달받은 va를 통해 page 확보 */
 	struct page *page = spt_find_page(spt, va);	
 	
@@ -324,18 +325,73 @@ supplemental_page_table_init (struct supplemental_page_table *spt UNUSED)
 
 /* src에서 dst로 supplemental page table을 복사합니다 */
 bool
-supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED, struct supplemental_page_table *src UNUSED) {
-	/* 부모의 SPT 복사
-	 * 1. 부모의 SPT를 순회하여 복사할 parent_page 찾기
-	 * 2. parent_page의 유형에 따라 복사 방법 분기
-	 * 2-1. 공통 로직
-	 * 		- vm_alloc_page(parent_page의 타입과 마커, 가상주소, writable, init, aux)
-	 * 		- parent_page의 init과 aux가 NULL일 경우 분기 처리 
+supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
+		struct supplemental_page_table *src UNUSED) {
+	
+	// 흐름 정리
+	// 1. src 내부 모든 버킷에 있는 모든 페이지들을 다 복사해와야함.
+	// 2. 근데 그 페이지들이 프레임이 존재한다면 프레임과의 연결 끊기.
+	// 3. 복사해와야 하니, 빈 도화지 같이 vm_alloc_page를 통해서 새 페이지를 할당.
 	 
 	
 	
-	 
+	// 이건 복사중이라 중간에 인터럽트 들어오면 안됨.
+	enum intr_level old_level = intr_disable();
+	// 이건 초기화를 통해 고정되는 정보가 아니기 때문에, 복사해온다.
+	dst->hash_table.aux = src->hash_table.aux;
+	
+	// 순회를 위한 구조체
+	struct hash_iterator src_hi; 
 
+	// hash_iterator의 초기화 과정.
+	hash_first(&src_hi, &src->hash_table);
+	
+	// 계속 찾고 끝까지 다 하면 반복문 빠져나감.
+	while (hash_next(&src_hi))
+	{
+		struct page *temp_page =  hash_entry(hash_cur(&src_hi), struct page, hash_elem);
+
+
+		/* aux 메모리 할당 후 필드 초기화 */
+		// struct aux *aux = malloc(sizeof(struct aux));
+		// if(aux == NULL)
+		// 	return false;
+
+		// aux = temp_page->aux;
+
+		// if (!vm_alloc_page_with_initializer (VM_ANON, upage,
+		// 			writable, lazy_load_segment, aux))
+		// 	return false;
+
+		if (temp_page->operations->type == VM_UNINIT)
+		{
+			vm_alloc_page(temp_page->uninit.type, temp_page->va, temp_page->writable);
+		}
+		else
+		{
+			vm_alloc_page(temp_page->operations->type, temp_page->va, temp_page->writable);
+		}
+
+		// vm_alloc_page를 통해서 새 페이지 할당,
+		// 할당한 페이지 spt에 넣기 모두 실행
+	}
+
+	// 제대로 hash_table이 복제가 되었다면 elem_cnt가 같겠지?
+	bool success = (dst->hash_table.elem_cnt == src->hash_table.elem_cnt ? true : false);
+	intr_set_level(old_level);
+
+	if (success)
+		return true;
+	else
+	{
+		return false;
+	}
+}
+
+void page_clear (struct hash_elem *e, void *aux)
+{
+	struct page *temp_page = hash_entry(e, struct page, hash_elem);
+	vm_dealloc_page(temp_page);
 }
 
 /* supplemental page table이 가진 자원을 해제합니다 */
@@ -343,6 +399,13 @@ void
 supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
         /* TODO: 스레드가 보유한 모든 supplemental_page_table을 파괴하고
          * TODO: 수정된 내용을 저장소에 모두 반영하세요. */
+	
+	// 파괴왕. 일단 액션함수 없이 해볼까? -> 액션함수 없으면 모든 테스트 케이스들이 터짐.
+	hash_clear (&spt->hash_table, page_clear);
+
+	// 1. 왜 spt 내부 변수들만 해제하고, spt는 해제하면 안되는가?
+	// 2. clear 와 destroy 의 차이?
+
 }
 
 /* hash_elem으로 bucket_idx 획득 */
