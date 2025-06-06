@@ -188,7 +188,9 @@ __do_fork (void *aux) {
 
 	process_init ();	
 
-	/* 마지막으로 새로 생성한 프로세스로 전환한다. */
+        /* 마지막으로 새로 생성한 프로세스로 전환한다. */
+	tid_t tid = thread_current()->tid;
+	
 	if (succ)
 	{
 		if_.R.rax = 0;
