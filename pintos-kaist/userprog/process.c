@@ -188,7 +188,7 @@ __do_fork (void *aux) {
 
 	process_init ();	
 
-        /* 마지막으로 새로 생성한 프로세스로 전환한다. */
+	/* 마지막으로 새로 생성한 프로세스로 전환한다. */
 	if (succ)
 	{
 		if_.R.rax = 0;
@@ -798,7 +798,10 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 static bool
 setup_stack (struct intr_frame *if_) {
 	bool success = false;
-	thread_current()->stk_bottom = (uint64_t *)USER_STACK - PGSIZE;
+
+	struct thread *curr = thread_current();
+	curr->stk_bottom = (uint8_t *)USER_STACK - PGSIZE;
+	
 	void *stack_bottom = thread_current()->stk_bottom;	
 	
 	/* 스택용 페이지를 먼저 할당 */

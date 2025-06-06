@@ -63,7 +63,7 @@ pass tests/userprog/bad-jump
 pass tests/userprog/bad-jump2
 pass tests/vm/pt-grow-stack
 FAIL tests/vm/pt-grow-bad
-pass tests/vm/pt-big-stk-obj
+FAIL tests/vm/pt-big-stk-obj
 pass tests/vm/pt-bad-addr
 pass tests/vm/pt-bad-read
 pass tests/vm/pt-write-code

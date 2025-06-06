@@ -71,7 +71,7 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable, v
 
 		/* 타입별로 적절한 initializer를 선택 */	
       	switch (VM_TYPE(type))
-      	{
+      	{						
 			case VM_ANON:
 				page_initializer = anon_initializer;
 				break;		
@@ -250,7 +250,7 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 	if(page == NULL)
 	{				
 		/* USER_STACK에서 할당 받은 메모리의 경계(stk_bottom)에서 1 PGSIZE 더 확장한 영역 내에 있는 fault_addr 처리 */
-		if (addr < USER_STACK && addr > curr->stk_bottom - (PGSIZE / 2))
+		if (addr < USER_STACK && addr > curr->stk_bottom - PGSIZE)
 		{
 			vm_stack_growth(addr);
 			return true;
@@ -324,8 +324,18 @@ supplemental_page_table_init (struct supplemental_page_table *spt UNUSED)
 
 /* src에서 dst로 supplemental page table을 복사합니다 */
 bool
-supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
-		struct supplemental_page_table *src UNUSED) {
+supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED, struct supplemental_page_table *src UNUSED) {
+	/* 부모의 SPT 복사
+	 * 1. 부모의 SPT를 순회하여 복사할 parent_page 찾기
+	 * 2. parent_page의 유형에 따라 복사 방법 분기
+	 * 2-1. 공통 로직
+	 * 		- vm_alloc_page(parent_page의 타입과 마커, 가상주소, writable, init, aux)
+	 * 		- parent_page의 init과 aux가 NULL일 경우 분기 처리 
+	 
+	
+	
+	 
+
 }
 
 /* supplemental page table이 가진 자원을 해제합니다 */
