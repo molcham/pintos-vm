@@ -19,6 +19,7 @@
 #include "threads/vaddr.h"
 #include "intrinsic.h"
 #include "userprog/syscall.h"
+#include <stdbool.h>
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -720,7 +721,7 @@ install_page (void *upage, void *kpage, bool writable) {
 /* 이 아래의 코드는 프로젝트 3 이후에 사용된다.
  * 프로젝트 2에서만 구현하려면 위의 블록을 수정하면 된다. */
 
-static bool
+bool
 lazy_load_segment (struct page *page, void *aux) {
 	/* TODO: Load the segment from the file */
 	/* TODO: This called when the first page fault occurs on address VA. */
