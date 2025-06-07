@@ -134,8 +134,7 @@ spt_insert_page (struct supplemental_page_table *spt, struct page *page) {
 	if(find_page == NULL)
 	{		
 		if(hash_insert(&spt->hash_table, &page->hash_elem) != NULL)		
-			return false;	
-		
+			return false;			
 	}
 	return true;
 }
@@ -326,67 +325,58 @@ supplemental_page_table_init (struct supplemental_page_table *spt UNUSED)
 
 /* src에서 dst로 supplemental page table을 복사합니다 */
 bool
-supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
-		struct supplemental_page_table *src UNUSED) {
+supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED, struct supplemental_page_table *src UNUSED) {	
 	
-	// 흐름 정리
-	// 1. src 내부 모든 버킷에 있는 모든 페이지들을 다 복사해와야함.
-	// 2. 근데 그 페이지들이 프레임이 존재한다면 프레임과의 연결 끊기.
-	// 3. 복사해와야 하니, 빈 도화지 같이 vm_alloc_page를 통해서 새 페이지를 할당.
-	 
-	
-	
-	// 이건 복사중이라 중간에 인터럽트 들어오면 안됨.
-	enum intr_level old_level = intr_disable();
-	// 이건 초기화를 통해 고정되는 정보가 아니기 때문에, 복사해온다.
-	dst->hash_table.aux = src->hash_table.aux;
-	
-	// 순회를 위한 구조체
+	/* src의 해시 테이블 순회를 위한 구조체 선언 */
 	struct hash_iterator src_hi; 
 
-	// hash_iterator의 초기화 과정.
+	/* src_hi의 hash_elem을 dst의 hash_table의 첫번째 bucket, 첫번째 hash_elem으로 설정 */
 	hash_first(&src_hi, &src->hash_table);
 	
-	// 계속 찾고 끝까지 다 하면 반복문 빠져나감.
+	/* dst의 hash_table을 순회하며, page 복사 */
 	while (hash_next(&src_hi))
 	{
-		struct page *temp_page =  hash_entry(hash_cur(&src_hi), struct page, hash_elem);
+		struct page *src_page = hash_entry(hash_cur(&src_hi), struct page, hash_elem);
 
-
-		/* aux 메모리 할당 후 필드 초기화 */
-		// struct aux *aux = malloc(sizeof(struct aux));
-		// if(aux == NULL)
-		// 	return false;
-
-		// aux = temp_page->aux;
-
-		// if (!vm_alloc_page_with_initializer (VM_ANON, upage,
-		// 			writable, lazy_load_segment, aux))
-		// 	return false;
-
-		if (temp_page->operations->type == VM_UNINIT)
-		{
-			vm_alloc_page(temp_page->uninit.type, temp_page->va, temp_page->writable);
-		}
+		enum vm_type type;
+		void *va = src_page->va;
+		bool writable = src_page->writable;
+		bool is_swaped = src_page->is_swaped;
+		struct aux *info = get_info(src_page);
+		struct frame *frame = src_page->frame;
+		
+		/* UNINIT 타입의 경우 초기화 이후에 지정될 타입 */
+		if (src_page->operations->type == VM_UNINIT)
+			type = src_page->uninit.type;
 		else
+			type = src_page->operations->type;
+
+		/* ANON 타입의 경우 */
+		if (type == VM_ANON)		
+		{						
+			vm_alloc_page(type, va, writable);						
+		}		
+		
+		/* FILE 타입의 경우 */
+		else if (type == VM_FILE)
 		{
-			vm_alloc_page_with_initializer(temp_page->operations->type, temp_page->va, temp_page->writable, NULL, NULL);
+			vm_alloc_page_with_initializer(type, va, writable, lazy_load_segment, info);					
 		}
 
-		// vm_alloc_page를 통해서 새 페이지 할당,
-		// 할당한 페이지 spt에 넣기 모두 실행
+		/* Frame이 매핑된 경우 */
+		if (frame != NULL)
+		{
+			vm_claim_page(va);
+		}
 	}
 
-	// 제대로 hash_table이 복제가 되었다면 elem_cnt가 같겠지?
+	/* src와 dst의 elem_cnt를 비교하여 복사 성공 여부 확인 */
 	bool success = (dst->hash_table.elem_cnt == src->hash_table.elem_cnt ? true : false);
-	intr_set_level(old_level);
 
-	if (success)
-		return true;
-	else
-	{
-		return false;
-	}
+	/* 프레임도 확인??? */
+	success = (dst->hash_table.elem_cnt == src->hash_table.elem_cnt ? true : false);
+
+	return success;	
 }
 
 void page_clear (struct hash_elem *e, void *aux)
@@ -425,5 +415,11 @@ bool cmp_page (const struct hash_elem *a, const struct hash_elem *b, void *aux)
 	void *b_va = hash_entry(b, struct page, hash_elem)->va;
 
 	return (uint64_t *)a_va < (uint64_t *)b_va ? true : false;
+}
+
+struct aux * get_info (const struct page *src_page)
+{
+	enum vm_type type = src_page->operations->type;
+	return NULL;	
 }
 
