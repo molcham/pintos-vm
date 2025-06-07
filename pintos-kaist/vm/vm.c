@@ -247,6 +247,13 @@ bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
 	struct supplemental_page_table *spt UNUSED = &curr->spt;
 	struct page *page = NULL;
 
+	void *rsp;
+
+	if(!user) 
+		rsp = (void *)f->rsp;	
+	else 
+		rsp = (void *)thread_current()->tf.rsp;
+	
 	/* 스왑-아웃된 상태면 스왑-인 (추후 구현) */
 
 	/* 페이지 폴트를 일으킨 va를 가지고 spt에서 page 탐색 */
@@ -256,7 +263,7 @@ bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
 	if (page == NULL)
 	{
 		/* USER_STACK에서 할당 받은 메모리의 경계(stk_bottom)에서 1 PGSIZE 더 확장한 영역 내에 있는 fault_addr 처리 */
-		if (addr < USER_STACK && addr > curr->stk_bottom - PGSIZE)
+		if (addr == rsp - 8 && addr < USER_STACK && addr >= (void *)(1 << 20))
 		{
 			vm_stack_growth(addr);
 			return true;
