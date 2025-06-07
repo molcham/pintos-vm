@@ -247,18 +247,15 @@ bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
 	struct supplemental_page_table *spt UNUSED = &curr->spt;
 	struct page *page = NULL;
 
+	/* fault_addr이 유저 영역일 경우 전달받은 파라미터에서, 커널 영역일 경우 스레드의 stk_rsp에서 값 복사 */
 	uint64_t *rsp;
 	if (user)
 		rsp = (void *)f->rsp;
 	else
-		rsp = curr->stk_rsp;
-
-	// if(!user) 
-	// 	rsp = (void *)f->rsp;	
-	// else 
-	// 	rsp = (void *)thread_current()->tf.rsp;
+		rsp = curr->stk_rsp;	
 	
 	/* 스왑-아웃된 상태면 스왑-인 (추후 구현) */
+
 
 	/* 페이지 폴트를 일으킨 va를 가지고 spt에서 page 탐색 */
 	page = spt_find_page(spt, addr);
@@ -266,8 +263,8 @@ bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
 	/* 스택 성장을 요하는 fault_addr 처리 */
 	if (page == NULL)
 	{
-		/* USER_STACK에서 할당 받은 메모리의 경계(stk_bottom)에서 1 PGSIZE 더 확장한 영역 내에 있는 fault_addr 처리 */
-		if (addr < USER_STACK && addr >= rsp - PGSIZE && addr >= (1 << 20))
+		/* USER_STACK의 범위 내에 있으며 (USER_STACK ~ USER_STACK - 1MB) rsp - 8 보다는 높은 영역 내에 있는 fault_addr 처리 */
+		if (addr < USER_STACK && addr >= (rsp - 8) && addr >= (1 << 20))
 		{
 			vm_stack_growth(addr);
 			return true;
