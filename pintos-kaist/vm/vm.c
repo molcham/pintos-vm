@@ -203,22 +203,16 @@ vm_get_frame(void)
 /* 스택을 확장합니다. */
 static void
 vm_stack_growth(void *addr UNUSED)
-{
-
-	struct thread *curr = thread_current();
-
+{	
 	/* fault_addr을 내림한 주소로 SPT에 삽입 및 프레임 매핑 */
 	void *stack_addr = pg_round_down(addr);
 
 	/* SPT에 uninit 타입으로 삽입 */
 	bool success = vm_alloc_page(VM_ANON | VM_MARKER_0, stack_addr, true);
 
+	/* SPT에 삽입 직후 프레임에 매핑하여 메모리에 로드 (Lazy Load X) */
 	if (success)
-	{
-		/* SPT에 삽입 직후 프레임에 매핑하여 메모리에 로드 (Lazy Load X) */
-		if (vm_claim_page(stack_addr))
-			curr->stk_bottom -= PGSIZE;
-	}
+		vm_claim_page(stack_addr);				
 }
 
 /* write_protected 페이지에서의 fault 처리 */
@@ -250,7 +244,7 @@ bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
 	/* fault_addr이 유저 영역일 경우 전달받은 파라미터에서, 커널 영역일 경우 스레드의 stk_rsp에서 값 복사 */
 	uint64_t *rsp;
 	if (user)
-		rsp = (void *)f->rsp;
+		rsp = f->rsp;
 	else
 		rsp = curr->stk_rsp;	
 	
@@ -264,7 +258,7 @@ bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
 	if (page == NULL)
 	{
 		/* USER_STACK의 범위 내에 있으며 (USER_STACK ~ USER_STACK - 1MB) rsp - 8 보다는 높은 영역 내에 있는 fault_addr 처리 */
-		if (addr < USER_STACK && addr >= (rsp - 8) && addr >= (1 << 20))
+		if (addr < USER_STACK && addr >= (rsp - 8) && addr >= (void *)(USER_STACK - (1 << 20)))
 		{
 			vm_stack_growth(addr);
 			return true;

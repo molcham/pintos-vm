@@ -129,8 +129,7 @@ struct thread {
 	/* Table for whole virtual memory owned by thread. */
 	struct supplemental_page_table spt;		
 	
-	uint64_t *stk_rsp;
-	uint64_t *stk_bottom;	
+	uint64_t *stk_rsp;	
 #endif
 
 	/* Owned by thread.c. */
