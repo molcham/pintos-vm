@@ -118,6 +118,6 @@ enum vm_type page_get_type (struct page *page);
 /* 신규 생성 함수 */
 uint64_t get_hash (const struct hash_elem *e, void *aux);
 bool cmp_page (const struct hash_elem *a, const struct hash_elem *b, void *aux);
-
+static void vm_stack_growth (void *addr);
 
 #endif  /* VM_VM_H */

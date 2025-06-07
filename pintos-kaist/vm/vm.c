@@ -203,22 +203,16 @@ vm_get_frame(void)
 /* 스택을 확장합니다. */
 static void
 vm_stack_growth(void *addr UNUSED)
-{
-
-	struct thread *curr = thread_current();
-
+{	
 	/* fault_addr을 내림한 주소로 SPT에 삽입 및 프레임 매핑 */
 	void *stack_addr = pg_round_down(addr);
 
 	/* SPT에 uninit 타입으로 삽입 */
 	bool success = vm_alloc_page(VM_ANON | VM_MARKER_0, stack_addr, true);
 
+	/* SPT에 삽입 직후 프레임에 매핑하여 메모리에 로드 (Lazy Load X) */
 	if (success)
-	{
-		/* SPT에 삽입 직후 프레임에 매핑하여 메모리에 로드 (Lazy Load X) */
-		if (vm_claim_page(stack_addr))
-			curr->stk_bottom -= PGSIZE;
-	}
+		vm_claim_page(stack_addr);				
 }
 
 /* write_protected 페이지에서의 fault 처리 */
@@ -250,7 +244,7 @@ bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
 	/* fault_addr이 유저 영역일 경우 전달받은 파라미터에서, 커널 영역일 경우 스레드의 stk_rsp에서 값 복사 */
 	uint64_t *rsp;
 	if (user)
-		rsp = (void *)f->rsp;
+		rsp = f->rsp;
 	else
 		rsp = curr->stk_rsp;	
 	
@@ -264,7 +258,7 @@ bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
 	if (page == NULL)
 	{
 		/* USER_STACK의 범위 내에 있으며 (USER_STACK ~ USER_STACK - 1MB) rsp - 8 보다는 높은 영역 내에 있는 fault_addr 처리 */
-		if (addr < USER_STACK && addr >= (rsp - 8) && addr >= (1 << 20))
+		if (addr < USER_STACK && addr >= (rsp - 8) && addr >= (void *)(USER_STACK - (1 << 20)))
 		{
 			vm_stack_growth(addr);
 			return true;
@@ -340,70 +334,67 @@ void supplemental_page_table_init(struct supplemental_page_table *spt UNUSED)
 bool supplemental_page_table_copy(struct supplemental_page_table *dst UNUSED,
 								  struct supplemental_page_table *src UNUSED)
 {
-
 	// 흐름 정리
-	// 1. src 내부 모든 버킷에 있는 모든 페이지들을 다 복사해와야함.
-	// 2. 복사해와야 하니, 빈 도화지 같이 vm_alloc_page를 통해서 새 페이지를 할당.
-	// 3. 새 페이지를 할당했다면 frame 연결
-	// 4. frame 까지 연결이 됐다면, frame이 가리키는 물리주소에 데이터 넣기.
+	// 1. src 내부 hash_table의 모든 bucket에 있는 모든 hash_elem에 연결된 페이지들을 다 복사해야 함
+	// 2. 복사해야 하니, vm_alloc_page를 통해서 새 페이지를 할당.
+	// 3. 새 페이지를 할당한 후, ANON과 FILE의 경우 frame 연결(추후 swap 여부에 따라 분기 필요)
+	// 4. frame 연결 후, frame이 가리키는 물리 메모리 주소(kva)에 있는 데이터 역시 memcpy를 통해 복사
 
-	// 이건 초기화를 통해 고정되는 정보가 아니기 때문에, 복사해온다.
+	/* src의 hash_table에서 aux 복사 (초기화로 생성되는 정보 X) */
 	dst->hash_table.aux = src->hash_table.aux;
 
-	// 순회를 위한 구조체
+	/* src의 hash_table 순회를 위한 구조체 선언 */
 	struct hash_iterator src_hi;
 
-	// hash_iterator의 초기화 과정.
+	/* src_hi의 hash_elem을 dst의 hash_table의 첫번째 bucket, 첫번째 hash_elem으로 설정 */
 	hash_first(&src_hi, &src->hash_table);
+
 	struct aux *_aux;
 	struct page *dst_page;
 	
-	// 계속 찾고 끝까지 다 하면 반복문 빠져나감.
+	/* dst의 hash_table을 순회하며, page 복사 */
 	while (hash_next(&src_hi))
 	{
 		struct page *temp_page = hash_entry(hash_cur(&src_hi), struct page, hash_elem);
 
-
 		switch (VM_TYPE(temp_page->operations->type))
 		{
-			// uninit인 경우, uninit->type 에 따라 aux를 넘겨줘야 하지만, 어차피 anon일 경우 aux=NULL이기 때문에
-			// 그냥 해도 될듯?
+			/* uninit인 경우 */ 			
 			case VM_UNINIT:
 				_aux = temp_page->uninit.aux;
-
 				vm_alloc_page_with_initializer(temp_page->uninit.type, temp_page->va, temp_page->writable, temp_page->uninit.init, _aux);
 				
-				// 원래 uninit이었다는건? 원래 프레임이 연결돼있지 않았다는 것!
-				// -> claim_page 없이 넘어가기
+				/* uninit은 메모리에 로드되지 않은 페이지라, vm_claim_page() 호출 없이 종료 */
 				break;
 			
-			// file인 경우는 aux를 넘겨줘야 함.
+			/* file인 경우, aux 전달 */
 			case VM_FILE:
 				_aux->file = temp_page->file.file;
 				_aux->ofs = temp_page->file.ofs;
 				_aux->page_read_bytes = temp_page->file.page_read_bytes;
 				_aux->page_zero_bytes = temp_page->file.page_zero_bytes;
 
-				// init 함수를 어떻게 넘겨줘야 할까?
 				vm_alloc_page_with_initializer(VM_FILE, temp_page->va, temp_page->writable, lazy_load_segment, _aux);
 				
-				// spt에 올려줬으면 frame도 연결해줘야겠지?
+				/* spt 등록 후 frame 연결 */
 				if (!vm_claim_page(temp_page->va))
 					return false;
 				
-				// 이제 frame까지 연결이 됐다면, 그 frame 안에 원래의 데이터들을 채워줘야겠지?
+				/* frame 연결 후, 해당 frame이 가리키는 kva(물리 메모리 주소)에 쓰인 데이터 복사 */ 
 				dst_page = spt_find_page(dst, temp_page->va);
 				memcpy(dst_page->frame->kva, temp_page->frame->kva, PGSIZE);
 
 				break;
 
-			// VM_ANON 인 경우,
+			/* 그 외 (VM_ANON인 경우) */
 			default:
 				vm_alloc_page_with_initializer(VM_ANON, temp_page->va, temp_page->writable, NULL, NULL);
 				
+				/* spt 등록 후 frame 연결 */
 				if (!vm_claim_page(temp_page->va))
 					return false;
 				
+				/* frame 연결 후, 해당 frame이 가리키는 kva(물리 메모리 주소)에 쓰인 데이터 복사 */ 
 				dst_page = spt_find_page(dst, temp_page->va);
 				memcpy(dst_page->frame->kva, temp_page->frame->kva, PGSIZE);					
 				
@@ -411,15 +402,10 @@ bool supplemental_page_table_copy(struct supplemental_page_table *dst UNUSED,
 		}
 	}
 
-	// 제대로 hash_table이 복제가 되었다면 elem_cnt가 같겠지?
+	/* src와 dst의 elem_cnt를 비교하여 복사 성공 여부 확인 */
 	bool success = (dst->hash_table.elem_cnt == src->hash_table.elem_cnt ? true : false);
 
-	if (success)
-		return true;
-	else
-	{
-		return false;
-	}
+	return success;
 }
 
 void page_clear(struct hash_elem *e, void *aux)

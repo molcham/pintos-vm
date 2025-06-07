@@ -128,13 +128,15 @@ void validate_addr (const void *addr)
     if (addr == NULL || !is_user_vaddr (addr))
         sys_exit (-1);
 		
-    /* Check the first byte and the last byte of a machine word. */
+    #ifndef VM
+	/* Check the first byte and the last byte of a machine word. */
     for (size_t i = 0; i < sizeof (void *); i++)
     {
         const void *check = (const uint8_t *) addr + i;
         if (!is_user_vaddr (check) || pml4_get_page (curr->pml4, check) == NULL)
             sys_exit (-1);
     }
+	#endif
 }
 
 void halt(void)
@@ -279,6 +281,13 @@ int read(int fd, void *buffer, unsigned size)
 	
 	/* 파라미터 유효성 검증 */
 	validate_addr(buffer);	
+
+	/* 추후 검토 */
+	// #ifdef VM
+    // struct page *page = spt_find_page(&thread_current()->spt, buffer);
+    // if (page && !page->writable)
+    //     sys_exit(-1);
+    // #endif
 
 	/* 파일이 없거나 표준 입력/에러이거나 할당 가능한 fd 이상이면 종료 */
 	if(fd == 0 || fd == 1 || fd > FD_MAX)

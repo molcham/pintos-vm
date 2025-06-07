@@ -800,21 +800,18 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* USER_STACK 위치에 한 페이지 크기의 스택을 생성한다. 성공 시 true를 반환한다. */
 static bool
 setup_stack (struct intr_frame *if_) {
-	bool success = false;
-	thread_current()->stk_bottom = (uint64_t *)USER_STACK - PGSIZE;
-	void *stack_bottom = thread_current()->stk_bottom;	
 	
-	/* 스택용 페이지를 먼저 할당 */
-	success = vm_alloc_page(VM_ANON | VM_MARKER_0, stack_bottom, true);
+	void *stack_bottom = (void *)(((uint8_t *)USER_STACK) - PGSIZE);
+	
+	if (!vm_alloc_page(VM_ANON, stack_bottom, true))
+    	return false;
+   	
+	if (!vm_claim_page(stack_bottom))
+	    return false;
 
-	/* 할당한 페이지 확보 후 rsp 업데이트 */
-	if (success)
-	{
-		success = vm_claim_page(stack_bottom);
-		if_->rsp = (uint64_t *)USER_STACK;
-	}		
-	
-	return success;
+   	if_->rsp = USER_STACK;
+
+    return true;
 }
 
 #endif /* VM */
