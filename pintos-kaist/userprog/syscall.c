@@ -410,13 +410,7 @@ fail:
 
 void sys_munmap(void *addr)
 {
-	struct thread *curr = thread_current();
-	addr = pg_round_down(addr);
-
-	struct page *target_page = spt_find_page(&curr->spt, addr);
-
-	if(target_page->operations->type == VM_FILE)
-		file_backed_destroy(target_page);
+	do_munmap(addr);
 }
 
 

@@ -52,19 +52,22 @@ void
 file_backed_destroy (struct page *page) {	
 
 	struct frame *target_frame = &page->frame;
-		
-	free(target_frame->kva);
-	list_remove(target_frame->frame_elem);
-	free(target_frame);
-	target_frame == NULL;		
+
+	if(target_frame != NULL)
+	{
+		palloc_free_page(target_frame->kva);
+		list_remove(&target_frame->frame_elem);
+		free(target_frame);
+		page->frame = NULL;
+	}		
 }
 
 /* mmap을 수행합니다. */
 void *
 do_mmap (void *addr, size_t length, int writable, struct file *file, off_t ofs) {
 	
-	uint32_t read_bytes = length;
-	uint32_t zero_bytes = PGSIZE - (read_bytes % PGSIZE);		
+	void *start = addr;
+	uint32_t read_bytes = length;	
 	
 	while (read_bytes > 0) {
 		/* 이 페이지를 채울 양을 계산한다.
@@ -76,7 +79,7 @@ do_mmap (void *addr, size_t length, int writable, struct file *file, off_t ofs) 
 		/* aux 메모리 할당 후 필드 초기화 */
 		struct aux *aux = malloc(sizeof(struct aux));
 		if(aux == NULL)
-			return false;
+			return NULL;
 
 		aux->file = file_reopen(file); /* 추후 확인 필요 */
 		aux->ofs = ofs;
@@ -85,15 +88,14 @@ do_mmap (void *addr, size_t length, int writable, struct file *file, off_t ofs) 
 
 		if (!vm_alloc_page_with_initializer (VM_FILE, addr,
 					writable, lazy_load_segment, aux))
-			return false;
+			return NULL;
 
 		/* 다음 주소로 이동. */
-		read_bytes -= page_read_bytes;
-		zero_bytes -= page_zero_bytes;
+		read_bytes -= page_read_bytes;		
 		ofs += page_read_bytes; /* 오프셋 업데이트 */ 
-		addr -= PGSIZE;
+		addr += PGSIZE;
 	}
-	return true;
+	return start;
 }
 
 /* munmap을 수행합니다. */
@@ -103,31 +105,26 @@ do_munmap (void *addr) {
 	addr = pg_round_down(addr);
 	struct thread *curr = thread_current();
 
-	struct page *target_page = spt_find_page(&curr->spt, addr);
+	struct page *page = spt_find_page(&curr->spt, addr);
 	
-	if (target_page == NULL)
+	if (page == NULL)
 		return NULL;
 	
-	if (target_page->operations->type != VM_FILE)
-		return NULL;
-
-	off_t used_bytes = target_page->file.aux->page_read_bytes;	
-	off_t offset = target_page->file.aux->ofs;
-
-	while(used_bytes > 0)
+	while (page->operations->type == VM_FILE)
 	{
-		bool dirty = pml4_is_dirty(&curr->pml4, addr);
-		if(dirty)		
-			file_write_at(target_page->file.aux->file, addr, used_bytes, offset);
-		
-		destroy(target_page);
+		struct aux *aux = page->file.aux;
 
-		used_bytes -= PGSIZE;
-		addr -= PGSIZE;
+		if (pml4_is_dirty(curr->pml4, page->va)) 
+		{
+			file_write_at(aux->file, page->va, aux->page_read_bytes, aux->ofs);
+			pml4_set_dirty(curr->pml4, page->va, false);
+		}
 
-		target_page = spt_find_page(&curr->spt, addr);
+		pml4_clear_page(curr->pml4, page->va);
+		hash_delete(&curr->spt.hash_table, &page->hash_elem);
+		spt_remove_page(&curr->spt, page);
 
-		if (target_page == NULL)
-			return NULL;
+		addr += PGSIZE;
+		page = spt_find_page(&curr->spt, addr);
 	}
 }

@@ -78,7 +78,7 @@ extern struct list frame_table;
 struct frame {
 	void *kva;
 	struct page *page;
-	struct list_elem *frame_elem;
+	struct list_elem frame_elem;
 };
 
 /* 페이지 동작을 위한 함수 테이블.
