@@ -26,6 +26,6 @@ void close(int fd);
 struct thread *get_child(tid_t tid);
 int get_next_fd(struct thread *curr);
 void *sys_mmap(void *addr, size_t length, int writable, int fd, off_t offset);
-void *sys_munmap(void *addr);
+void sys_munmap(void *addr);
 
 #endif /* userprog/syscall.h */

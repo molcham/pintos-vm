@@ -3,13 +3,11 @@
 #include <stdio.h>
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
-#include "threads/thread.h"
 #include "threads/loader.h"
 #include "userprog/gdt.h"
 #include "threads/flags.h"
 #include "intrinsic.h"
 #include "filesys/filesys.h"
-#include "filesys/file.h"
 #include "threads/palloc.h"
 #include "threads/vaddr.h"
 
@@ -116,7 +114,7 @@ syscall_handler (struct intr_frame *f) {
 			break;
 
 		case SYS_MMAP:
-            f->R.rax = sys_mmap(f->R.rdi, f->R.rsi, f->R.rdx, f->R.rcx, f->R.r8);
+            f->R.rax = sys_mmap(f->R.rdi, f->R.rsi, f->R.rdx, f->R.r10, f->R.r8);
             break;
 
         case SYS_MUNMAP:
@@ -410,7 +408,7 @@ fail:
 	return NULL;	
 }
 
-void *sys_munmap(void *addr)
+void sys_munmap(void *addr)
 {
 	struct thread *curr = thread_current();
 	addr = pg_round_down(addr);
@@ -418,9 +416,7 @@ void *sys_munmap(void *addr)
 	struct page *target_page = spt_find_page(&curr->spt, addr);
 
 	if(target_page->operations->type == VM_FILE)
-		file_backed_destory (target_page);
-	
-	return NULL;
+		file_backed_destroy(target_page);
 }
 
 

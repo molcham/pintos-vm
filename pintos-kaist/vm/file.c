@@ -50,7 +50,7 @@ file_backed_swap_out (struct page *page) {
 /* 파일 기반 페이지를 파괴합니다. PAGE는 호출자가 해제합니다. */
 static void
 file_backed_destroy (struct page *page) {
-	
+
 	struct file_page *file_page UNUSED = &page->file;	
 	
 	off_t size = file_length(file_page->aux->file);
@@ -64,7 +64,7 @@ file_backed_destroy (struct page *page) {
 	free(target_frame->kva);
 	list_remove(target_frame->frame_elem);
 	free(target_frame);
-	target_frame == NULL;
+	target_frame == NULL;	
 }
 
 /* mmap을 수행합니다. */
@@ -107,4 +107,11 @@ do_mmap (void *addr, size_t length, int writable, struct file *file, off_t ofs) 
 /* munmap을 수행합니다. */
 void
 do_munmap (void *addr) {
+	struct thread *curr = thread_current();
+	addr = pg_round_down(addr);
+
+	struct page *target_page = spt_find_page(&curr->spt, addr);
+
+	if(target_page->operations->type == VM_FILE)
+		file_backed_destroy(target_page);	
 }
