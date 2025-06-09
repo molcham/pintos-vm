@@ -1,11 +1,13 @@
 #ifndef VM_VM_H
 #define VM_VM_H
 #include <stdbool.h>
+#include "vm/file.h"
 #include "threads/palloc.h"
 #include "kernel/hash.h"
 #include "threads/init.h"
 #include "userprog/process.h"
 #include "threads/mmu.h"
+#include "filesys/file.h"
 #include "threads/thread.h"
 
 enum vm_type {
@@ -76,7 +78,7 @@ extern struct list frame_table;
 struct frame {
 	void *kva;
 	struct page *page;
-	struct list_elem frame_elem;
+	struct list_elem *frame_elem;
 };
 
 /* 페이지 동작을 위한 함수 테이블.

@@ -119,9 +119,9 @@ syscall_handler (struct intr_frame *f) {
             f->R.rax = sys_mmap(f->R.rdi, f->R.rsi, f->R.rdx, f->R.rcx, f->R.r8);
             break;
 
-        // case SYS_MUNMAP:
-        //     sys_munmap(f->R.rdi);
-        //     break;
+        case SYS_MUNMAP:
+            sys_munmap(f->R.rdi);
+            break;
 	
 	default:
 		break;
@@ -408,6 +408,19 @@ void *sys_mmap(void *addr, size_t length, int writable, int fd, off_t offset)
 
 fail:
 	return NULL;	
+}
+
+void *sys_munmap(void *addr)
+{
+	struct thread *curr = thread_current();
+	addr = pg_round_down(addr);
+
+	struct page *target_page = spt_find_page(&curr->spt, addr);
+
+	if(target_page->operations->type == VM_FILE)
+		file_backed_destory (target_page);
+	
+	return NULL;
 }
 
 

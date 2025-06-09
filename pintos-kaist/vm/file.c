@@ -50,7 +50,21 @@ file_backed_swap_out (struct page *page) {
 /* 파일 기반 페이지를 파괴합니다. PAGE는 호출자가 해제합니다. */
 static void
 file_backed_destroy (struct page *page) {
-	struct file_page *file_page UNUSED = &page->file;
+	
+	struct file_page *file_page UNUSED = &page->file;	
+	
+	off_t size = file_length(file_page->aux->file);
+	off_t ofs = file_tell(file_page->aux->file);
+	
+	if(pml4_is_dirty)		
+		file_write_at(file_page->aux->file, page->va, size, ofs);
+
+	struct frame *target_frame;
+	
+	free(target_frame->kva);
+	list_remove(target_frame->frame_elem);
+	free(target_frame);
+	target_frame == NULL;
 }
 
 /* mmap을 수행합니다. */
@@ -60,7 +74,7 @@ do_mmap (void *addr, size_t length, int writable, struct file *file, off_t ofs) 
 	uint32_t read_bytes = length;
 	uint32_t zero_bytes = PGSIZE - (read_bytes % PGSIZE);		
 	
-	while (read_bytes > 0 || zero_bytes > 0) {
+	while (read_bytes > 0) {
 		/* 이 페이지를 채울 양을 계산한다.
 		 * PAGE_READ_BYTES 바이트를 파일에서 읽고
 		 * 나머지는 PAGE_ZERO_BYTES 바이트를 0으로 채운다. */

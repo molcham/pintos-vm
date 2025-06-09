@@ -277,13 +277,6 @@ thread_sleep (int64_t wakeup_tick)
     thread_block(); // 현재 스리드를 BLOCKED 상태로 변경 후 스케줄러 대상\uc5d에서 제제
 
     intr_set_level(old_level); // 이전 인터럽트 상태로 복원
-
-    /* ❌ 기존 busy-wait 구조에서 지정 (AS-IS)
-    cur->wakeup_ticks = timer_ticks() + ticks;      // 현재 시간 + ticks 값 계산해서 wakeup_ticks 설정 */
-
-    // // 중복 삽입 방지를 위해 무적가로써 이미 sleep_list에 포함되어 있는지 확인
-    // if (list_contains(&sleep_list, &cur->elem))
-    // 	list_remove(&cur->elem); // 포함되었다면 제거
 }
 
 
