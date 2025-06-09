@@ -728,7 +728,8 @@ lazy_load_segment (struct page *page, void *aux) {
 	/* TODO: VA is available when calling this function. */
 
 	/* aux에 담긴 정보를 info 구조체에 담기 */
-	struct aux *info = (struct aux *)aux;	
+	struct aux *info = malloc(sizeof(struct aux));
+	*info = *(struct aux*)aux;	
 	
 	void *kva = page->frame->kva;
 

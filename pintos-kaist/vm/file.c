@@ -26,10 +26,12 @@ file_backed_initializer (struct page *page, enum vm_type type, void *kva) {
 	/* 핸들러를 설정합니다. */
 	page->operations = &file_ops;
 
+	struct aux *aux = page->uninit.aux;	
+
 	/* file-backed_page 초기화 */
 	struct file_page *file_page = &page->file;
 
-	file_page->aux = NULL;
+	file_page->aux = aux;
 	file_page->modified = false;	
 	
 	return true;
@@ -67,7 +69,7 @@ void *
 do_mmap (void *addr, size_t length, int writable, struct file *file, off_t ofs) {
 	
 	void *start = addr;
-	uint32_t read_bytes = length;	
+	uint32_t read_bytes = length < (file_length(file) - ofs) ? length : (file_length(file) - ofs);
 	
 	while (read_bytes > 0) {
 		/* 이 페이지를 채울 양을 계산한다.
@@ -81,7 +83,7 @@ do_mmap (void *addr, size_t length, int writable, struct file *file, off_t ofs) 
 		if(aux == NULL)
 			return NULL;
 
-		aux->file = file_reopen(file); /* 추후 확인 필요 */
+		aux->file = file_reopen(file); 
 		aux->ofs = ofs;
 		aux->page_read_bytes = page_read_bytes;
 		aux->page_zero_bytes = page_zero_bytes;		
@@ -106,11 +108,13 @@ do_munmap (void *addr) {
 	struct thread *curr = thread_current();
 
 	struct page *page = spt_find_page(&curr->spt, addr);
+
+	struct file *file = page->file.aux->file;
 	
 	if (page == NULL)
 		return NULL;
 	
-	while (page->operations->type == VM_FILE)
+	while (page->operations->type == VM_FILE && file == page->file.aux->file)
 	{
 		struct aux *aux = page->file.aux;
 
@@ -121,10 +125,13 @@ do_munmap (void *addr) {
 		}
 
 		pml4_clear_page(curr->pml4, page->va);
-		hash_delete(&curr->spt.hash_table, &page->hash_elem);
-		spt_remove_page(&curr->spt, page);
+		// spt_remove_page(&curr->spt, page);
+		// hash_delete(&curr->spt.hash_table, &page->hash_elem);		
 
 		addr += PGSIZE;
 		page = spt_find_page(&curr->spt, addr);
+
+		if(page == NULL)
+			break;
 	}
 }

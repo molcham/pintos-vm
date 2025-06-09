@@ -283,7 +283,7 @@ int filesize(int fd)
 
 int read(int fd, void *buffer, unsigned size)
 {
-	struct thread *curr = thread_current();	
+	struct thread *curr = thread_current();		
 	
 	/* 파라미터 유효성 검증 */
 	validate_addr(buffer);	
@@ -293,7 +293,12 @@ int read(int fd, void *buffer, unsigned size)
     // struct page *page = spt_find_page(&thread_current()->spt, buffer);
     // if (page && !page->writable)
     //     sys_exit(-1);
-    // #endif
+    // #endif	
+
+	struct page *page = spt_find_page(&curr->spt, pg_round_down(buffer));			
+
+	if(page->writable == 0)
+		sys_exit(-1);
 
 	/* 파일이 없거나 표준 입력/에러이거나 할당 가능한 fd 이상이면 종료 */
 	if(fd == 0 || fd == 1 || fd > FD_MAX)
