@@ -61,6 +61,8 @@
         "ratio": "c",
         "vm.h": "c",
         "hash.h": "c",
-        "malloc.h": "c"
+        "malloc.h": "c",
+        "off_t.h": "c",
+        "thread": "c"
     }
 }

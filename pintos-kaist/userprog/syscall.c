@@ -114,6 +114,14 @@ syscall_handler (struct intr_frame *f) {
 		case SYS_CLOSE:
 			close(f->R.rdi);
 			break;
+
+		case SYS_MMAP:
+            f->R.rax = sys_mmap(f->R.rdi, f->R.rsi, f->R.rdx, f->R.rcx, f->R.r8);
+            break;
+
+        // case SYS_MUNMAP:
+        //     sys_munmap(f->R.rdi);
+        //     break;
 	
 	default:
 		break;
@@ -374,6 +382,34 @@ void close(int fd)
 
 	return;
 }
+
+void *sys_mmap(void *addr, size_t length, int writable, int fd, off_t offset)
+{
+	struct file *file = thread_current()->fdt[fd];
+	
+	/* 실패 조건 */
+	/* FD가 2이하 */
+	if(fd < 3)
+		goto fail;
+
+	/* length이 0 */
+	if(!length)
+		goto fail;
+
+	/* addr이 NULL, 또는 page-aligned 되지 않은 경우 */
+	if(addr == NULL || addr != pg_round_down(addr))
+		goto fail;
+
+	/* 파일의 길이가 0바이트인 경우 */
+	if(!filesize(fd))
+		goto fail;
+
+	return do_mmap(addr, length, writable, file, offset); 
+
+fail:
+	return NULL;	
+}
+
 
 struct thread* get_child(tid_t tid)
 {

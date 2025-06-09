@@ -31,17 +31,10 @@ anon_initializer (struct page *page, enum vm_type type, void *kva) {
 	page->operations = &anon_ops;	
 
 	/* anon_page 초기화 */
-	struct anon_page *anon_page = &page->anon;
-
-	///////////////// 수정 (NULL -> -1) ///////////////////			
-	// anon_page->swap_idx = NULL;	
-	///////////////// 수정 (NULL -> -1) ///////////////////
+	struct anon_page *anon_page = &page->anon;	
+	anon_page->swap_idx = -1;	
 	
-	// anon_page->aux = NULL;
-
-	////////////////////////////////////
-	return true;
-	//////////////////////////////////// 
+	return true;	
 }
 
 /* swap 영역에서 내용을 읽어 페이지를 불러옵니다. */

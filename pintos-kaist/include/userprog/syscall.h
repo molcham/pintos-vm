@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include "threads/thread.h"
+#include "filesys/off_t.h"
 
 #ifndef USERPROG_SYSCALL_H
 #define USERPROG_SYSCALL_H
@@ -21,5 +22,7 @@ unsigned tell(int fd);
 void close(int fd);
 struct thread *get_child(tid_t tid);
 int get_next_fd(struct thread *curr);
+void *sys_mmap(void *addr, size_t length, int writable, int fd, off_t offset);
+// void *sys_unmmap(void *addr);
 
 #endif /* userprog/syscall.h */
