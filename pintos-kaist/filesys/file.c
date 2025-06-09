@@ -4,8 +4,7 @@
 #include "threads/malloc.h"
 
 /* 열린 파일을 나타낸다. */
-struct file {
-        uint64_t file_magic;              /* 해당 메모리에 있는 데이터가 file인지 확인하기 위한 식별자 */
+struct file {        
 		struct inode *inode;        /* 파일이 속한 inode. */
         off_t pos;                  /* 현재 위치. */
         bool deny_write;            /* file_deny_write() 호출 여부. */
@@ -16,8 +15,7 @@ struct file {
 struct file *
 file_open (struct inode *inode) {
 	struct file *file = calloc (1, sizeof *file);	
-	if (inode != NULL && file != NULL) {
-		file->file_magic = FILE_MAGIC;
+	if (inode != NULL && file != NULL) {		
 		file->inode = inode;
 		file->pos = 0;
 		file->deny_write = false;
