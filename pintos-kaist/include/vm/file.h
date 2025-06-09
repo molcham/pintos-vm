@@ -3,6 +3,7 @@
 #include "threads/malloc.h"
 #ifndef VM_FILE_H
 #define VM_FILE_H
+#define FILE_MAGIC 0xF1F1F1F
 
 struct page;
 enum vm_type;

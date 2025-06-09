@@ -297,7 +297,7 @@ int read(int fd, void *buffer, unsigned size)
 
 	struct page *page = spt_find_page(&curr->spt, pg_round_down(buffer));			
 
-	if(page->writable == 0)
+	if(page != NULL && page->writable == 0)
 		sys_exit(-1);
 
 	/* 파일이 없거나 표준 입력/에러이거나 할당 가능한 fd 이상이면 종료 */
@@ -388,12 +388,16 @@ void close(int fd)
 
 void *sys_mmap(void *addr, size_t length, int writable, int fd, off_t offset)
 {
-	struct file *file = thread_current()->fdt[fd];
-	
 	/* 실패 조건 */
-	/* FD가 2이하 */
-	if(fd < 3)
+	/* FD가 2이하거나, FD_MAX를 초과할 경우 */
+	if(fd < 3 || fd > FD_MAX)
 		goto fail;
+
+	struct file *file = thread_current()->fdt[fd];
+
+	/* 매핑할 주소 검증 */
+	if(USER_STACK < addr)
+		goto fail;			
 
 	/* length이 0 */
 	if(!length)
@@ -404,7 +408,11 @@ void *sys_mmap(void *addr, size_t length, int writable, int fd, off_t offset)
 		goto fail;
 
 	/* 파일의 길이가 0바이트인 경우 */
-	if(!filesize(fd))
+	if(!file_length(file))
+		goto fail;
+
+	/* offset이 파일의 길이보다 긴 경우 */
+	if(length > file_length(file) - offset)
 		goto fail;
 
 	return do_mmap(addr, length, writable, file, offset); 
