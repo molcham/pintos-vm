@@ -388,42 +388,32 @@ void close(int fd)
 
 void *sys_mmap(void *addr, size_t length, int writable, int fd, off_t offset)
 {
-	struct thread *curr = thread_current ();
-    struct file *file;
-	
 	/* 실패 조건 */
-	/* FD가 2이하거나, FD_MAX를 초과 */
+	/* FD가 3 미만이거나 FD_MAX 초과 */
 	if(fd < 3 || fd > FD_MAX)
 		goto fail;
 
-	/* file이 NULL */
-	file = curr->fdt[fd];
-    if (file == NULL)
-        goto fail;
+	struct file *file = thread_current()->fdt[fd];
 
+	/* addr이 유저 영역이 아닌 경우 */
+	if(addr > USER_STACK)
+		goto fail;
+	
 	/* length이 0 */
 	if(!length)
 		goto fail;
 
-	/* 매핑할 주소 검증 */
-	if (addr > USER_STACK)
-		goto fail;				
+	/* addr이 NULL, 또는 page-aligned 되지 않은 경우 */
+	if(addr == NULL || addr != pg_round_down(addr))
+		goto fail;
 
-	/* addr이 NULL이거나 page-aligned 되지 않은 경우 */
-	if(addr != pg_round_down(addr))
+	/* offset이 page-aligned 되지 않은 경우 */
+	if (offset % PGSIZE != 0)
 		goto fail;
 
 	/* 파일의 길이가 0바이트인 경우 */
-	if(!file_length(file))
-		goto fail;
-
-	/* offset이 파일의 길이보다 긴 경우 */
-	if(length > file_length(file) - offset)
-		goto fail;
-
-	/* 해당 주소에 이미 페이지가 할당된 경우 */
-	if(spt_find_page(&curr->spt, addr) != NULL)
-		goto fail;
+	if(!filesize(fd))
+		goto fail;	
 
 	return do_mmap(addr, length, writable, file, offset); 
 
