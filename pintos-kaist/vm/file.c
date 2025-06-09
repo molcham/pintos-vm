@@ -4,7 +4,7 @@
 
 static bool file_backed_swap_in (struct page *page, void *kva);
 static bool file_backed_swap_out (struct page *page);
-static void file_backed_destroy (struct page *page);
+void file_backed_destroy (struct page *page);
 
 /* 이 구조체는 수정하지 않습니다. */
 static const struct page_operations file_ops = {
@@ -36,7 +36,7 @@ file_backed_initializer (struct page *page, enum vm_type type, void *kva) {
 }
 
 /* 파일에서 내용을 읽어 페이지를 불러옵니다. */
-static bool
+bool
 file_backed_swap_in (struct page *page, void *kva) {
 	struct file_page *file_page UNUSED = &page->file;
 }
@@ -48,23 +48,15 @@ file_backed_swap_out (struct page *page) {
 }
 
 /* 파일 기반 페이지를 파괴합니다. PAGE는 호출자가 해제합니다. */
-static void
-file_backed_destroy (struct page *page) {
+void
+file_backed_destroy (struct page *page) {	
 
-	struct file_page *file_page UNUSED = &page->file;	
-	
-	off_t size = file_length(file_page->aux->file);
-	off_t ofs = file_tell(file_page->aux->file);
-	
-	if(pml4_is_dirty)		
-		file_write_at(file_page->aux->file, page->va, size, ofs);
-
-	struct frame *target_frame;
-	
+	struct frame *target_frame = &page->frame;
+		
 	free(target_frame->kva);
 	list_remove(target_frame->frame_elem);
 	free(target_frame);
-	target_frame == NULL;	
+	target_frame == NULL;		
 }
 
 /* mmap을 수행합니다. */
@@ -107,11 +99,35 @@ do_mmap (void *addr, size_t length, int writable, struct file *file, off_t ofs) 
 /* munmap을 수행합니다. */
 void
 do_munmap (void *addr) {
-	struct thread *curr = thread_current();
+	
 	addr = pg_round_down(addr);
+	struct thread *curr = thread_current();
 
 	struct page *target_page = spt_find_page(&curr->spt, addr);
+	
+	if (target_page == NULL)
+		return NULL;
+	
+	if (target_page->operations->type != VM_FILE)
+		return NULL;
 
-	if(target_page->operations->type == VM_FILE)
-		file_backed_destroy(target_page);	
+	off_t used_bytes = target_page->file.aux->page_read_bytes;	
+	off_t offset = target_page->file.aux->ofs;
+
+	while(used_bytes > 0)
+	{
+		bool dirty = pml4_is_dirty(&curr->pml4, addr);
+		if(dirty)		
+			file_write_at(target_page->file.aux->file, addr, used_bytes, offset);
+		
+		destroy(target_page);
+
+		used_bytes -= PGSIZE;
+		addr -= PGSIZE;
+
+		target_page = spt_find_page(&curr->spt, addr);
+
+		if (target_page == NULL)
+			return NULL;
+	}
 }
