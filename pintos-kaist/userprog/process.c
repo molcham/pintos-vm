@@ -219,11 +219,13 @@ process_exec (void *f_name) {
 	_if.cs = SEL_UCSEG;
 	_if.eflags = FLAG_IF | FLAG_MBS;
 
-        /* 먼저 현재 실행 컨텍스트를 정리한다 */
+	/* 먼저 현재 실행 컨텍스트를 정리한다 */
 	process_cleanup ();		
 	
-        /* 그다음 실행 파일을 로드한다 */
+	/* 그다음 실행 파일을 로드한다 */
+	lock_acquire(&filesys_lock);
 	success = load(file_name, &_if);	
+	lock_release(&filesys_lock);
 	
 	palloc_free_page (file_name);	
 	

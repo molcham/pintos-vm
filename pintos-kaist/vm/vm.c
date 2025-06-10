@@ -107,6 +107,7 @@ err:
 struct page *
 spt_find_page(struct supplemental_page_table *spt UNUSED, void *va UNUSED)
 {
+	struct thread *curr = thread_current();
 
 	/* 전달 받은 va를 포함한 dummie_page 생성 */
 	struct page dummie_page;

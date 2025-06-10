@@ -64,6 +64,7 @@
         "malloc.h": "c",
         "off_t.h": "c",
         "thread": "c",
-        "file.h": "c"
+        "file.h": "c",
+        "string.h": "c"
     }
 }
