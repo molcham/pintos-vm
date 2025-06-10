@@ -357,7 +357,9 @@ bool supplemental_page_table_copy(struct supplemental_page_table *dst UNUSED,
 	{
 		struct page *temp_page = hash_entry(hash_cur(&src_hi), struct page, hash_elem);
 
-		switch (VM_TYPE(temp_page->operations->type))
+		enum vm_type type = VM_TYPE(temp_page->operations->type);	
+
+		switch (type)
 		{
 			/* uninit인 경우 */ 			
 			case VM_UNINIT:
@@ -437,6 +439,10 @@ uint64_t get_hash(const struct hash_elem *e, void *aux)
 /* 두 페이지간의 대소관계 비교(정렬에 큰 의미 없음) */
 bool cmp_page(const struct hash_elem *a, const struct hash_elem *b, void *aux)
 {
+	if (a == NULL)
+      return true;
+   	if (b == NULL)
+      return false;
 	void *a_va = hash_entry(a, struct page, hash_elem)->va;
 	void *b_va = hash_entry(b, struct page, hash_elem)->va;
 

@@ -24,6 +24,7 @@ static void rehash (struct hash *);
    AUX 인자는 부가적인 데이터를 전달할 때 사용됩니다. */
 bool
 hash_init (struct hash *h, hash_hash_func *hash, hash_less_func *less, void *aux) {
+	struct thread *curr = thread_current();	
 	h->elem_cnt = 0;
 	h->bucket_cnt = 4;
 	h->buckets = malloc (sizeof *h->buckets * h->bucket_cnt);
