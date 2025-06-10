@@ -54,14 +54,25 @@ void
 file_backed_destroy (struct page *page) {	
 
 	struct frame *target_frame = page->frame;
+    struct thread *curr = thread_current();
+    struct aux *aux = page->file.aux;
 
-	if(target_frame != NULL)
-	{
-		palloc_free_page(target_frame->kva);
-		list_remove(&target_frame->frame_elem);
-		free(target_frame);
-		page->frame = NULL;
-	}		
+    if(target_frame != NULL)
+    {
+		/* 파일이 수정된 경우 write-back */
+		if (pml4_is_dirty(curr->pml4, page->va)) 
+        {
+            file_write_at(aux->file, page->va, aux->page_read_bytes, aux->ofs);
+            pml4_set_dirty(curr->pml4, page->va, false);
+        }
+
+		/* 자원 해제 */
+        list_remove(&target_frame->frame_elem);
+        pml4_clear_page(curr->pml4, page->va);
+        palloc_free_page(target_frame->kva);
+        free(target_frame);
+        page->frame = NULL;
+    }		
 }
 
 /* mmap을 수행합니다. */

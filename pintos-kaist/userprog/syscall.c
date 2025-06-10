@@ -389,36 +389,33 @@ void close(int fd)
 void *sys_mmap(void *addr, size_t length, int writable, int fd, off_t offset)
 {
 	/* 실패 조건 */
-	/* FD가 3 미만이거나 FD_MAX 초과 */
-	if(fd < 3 || fd > FD_MAX)
-		goto fail;
+	/* addr이 없거나 page-align하지 않은 경우 */
+	if (!addr || addr != pg_round_down(addr))
+        return NULL;
 
+	/* addr이 유저 영역에 있지 않은 경우 */
+    if (addr > 0x800000000)
+        return NULL;
+
+	/* offset을 page-align하지 않은 경우 */
+    if (offset != pg_round_down(offset))
+        return NULL;	
+
+    /* SPT에 등록되지 않은 페이지인 경우 */
+	if (spt_find_page(&thread_current()->spt, addr))
+        return NULL;
+
+    /* file이 없는 경우 */	
+    if (thread_current()->fdt[fd] == NULL)
+        return NULL;
+	
 	struct file *file = thread_current()->fdt[fd];
 
-	/* addr이 유저 영역이 아닌 경우 */
-	if(addr > USER_STACK)
-		goto fail;
-	
-	/* length이 0 */
-	if(!length)
-		goto fail;
+	/* file의 길이 또는 length가 0인 경우 */
+    if (file_length(file) == 0 || length <= 0)
+        return NULL;
 
-	/* addr이 NULL, 또는 page-aligned 되지 않은 경우 */
-	if(addr == NULL || addr != pg_round_down(addr))
-		goto fail;
-
-	/* offset이 page-aligned 되지 않은 경우 */
-	if (offset % PGSIZE != 0)
-		goto fail;
-
-	/* 파일의 길이가 0바이트인 경우 */
-	if(!filesize(fd))
-		goto fail;	
-
-	return do_mmap(addr, length, writable, file, offset); 
-
-fail:
-	return NULL;	
+    return do_mmap(addr, length, writable, file, offset); 
 }
 
 void sys_munmap(void *addr)

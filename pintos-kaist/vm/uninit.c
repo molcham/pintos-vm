@@ -62,6 +62,9 @@ uninit_initialize (struct page *page, void *kva) {
 static void
 uninit_destroy (struct page *page) {
 	struct uninit_page *uninit UNUSED = &page->uninit;
-        /* TODO: 이 함수를 완성하세요.
-         * TODO: 특별히 할 일이 없다면 그냥 반환하면 됩니다. */
+
+	// if (uninit->aux != NULL) {
+	// 	free(uninit->aux);
+	// 	uninit->aux = NULL;
+	// }
 }
