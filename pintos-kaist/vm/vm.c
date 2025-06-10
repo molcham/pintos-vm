@@ -372,11 +372,7 @@ bool supplemental_page_table_copy(struct supplemental_page_table *dst UNUSED,
 			
 			/* file인 경우, aux 전달 */
 			case VM_FILE:
-				_aux->file = temp_page->file.aux->file;
-				_aux->ofs = temp_page->file.aux->ofs;
-				_aux->page_read_bytes = temp_page->file.aux->page_read_bytes;
-				_aux->page_zero_bytes = temp_page->file.aux->page_zero_bytes;
-
+				_aux = temp_page->file.aux;
 				vm_alloc_page_with_initializer(VM_FILE, temp_page->va, temp_page->writable, lazy_load_segment, _aux);
 				
 				/* spt 등록 후 frame 연결 */
