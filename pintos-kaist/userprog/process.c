@@ -298,7 +298,7 @@ process_exit (void) {
 	 * TODO: Implement process termination message (see
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
-
+	
 	/* 실행 중인 file 닫기 */
 	file_close(curr->running);	
 
@@ -314,13 +314,13 @@ process_exit (void) {
 	palloc_free_page(curr->fdt);
 	curr->fdt = NULL;
 	
+	process_cleanup ();
+
 	 /* 부모에게 작업 종료 안내 */ 
 	sema_up(&curr->wait_sema);
 	
 	/* 부모가 확인할때까지 대기 */ 
-	sema_down(&curr->exit_sema);
-
-	process_cleanup ();
+	sema_down(&curr->exit_sema);	
 }
 
 /* 현재 프로세스가 사용 중인 자원을 해제한다. */
