@@ -53,7 +53,7 @@ file_backed_swap_out (struct page *page) {
 void
 file_backed_destroy (struct page *page) {	
 
-	struct frame *target_frame = &page->frame;
+	struct frame *target_frame = page->frame;
 
 	if(target_frame != NULL)
 	{
