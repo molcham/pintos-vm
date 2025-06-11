@@ -152,7 +152,7 @@ void spt_remove_page(struct supplemental_page_table *spt, struct page *page)
 	return true;
 }
 
-/* 앞으로 쫓아낼 프레임을 얻습니다. 야호 */
+/* 앞으로 쫓아낼 프레임을 얻습니다. 야호 야호 야호 */
 static struct frame *
 vm_get_victim(void)
 {
