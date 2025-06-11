@@ -21,7 +21,11 @@ void vm_init(void)
 	/* 위의 줄은 수정하지 마세요. */
 	/* TODO: 여기에 코드를 작성하세요. */
 	/* frame table 초기화 */
-	list_init(&frame_table);
+	ASSERT (&frame_table != NULL);
+	frame_table.head.prev = &frame_table.tail;
+	frame_table.head.next = &frame_table.tail;
+	frame_table.tail.prev = &frame_table.head;
+	frame_table.tail.next = &frame_table.head;
 }
 
 /* 페이지의 유형을 얻습니다. 초기화된 이후에 어떤 타입이 될지
@@ -153,9 +157,27 @@ static struct frame *
 vm_get_victim(void)
 {
 	struct frame *victim = NULL;
-	/* TODO: 어떤 프레임을 제거할지는 구현하기 나름입니다. */
 
-	return victim;
+	struct thread *curr = thread_current();
+	uint64_t curr_pml4 = curr->pml4;
+
+	/* TODO: 어떤 프레임을 제거할지는 구현하기 나름입니다. */
+	for (struct list_elem *i = &frame_table.head ; ; i = i->next)
+	{
+		victim = list_entry(i, struct frame, frame_elem);
+		void *upage = victim->page->va;
+		if (pml4_is_accessed (curr_pml4, upage))
+		{
+			pml4_set_accessed (curr_pml4, upage, false);
+		}
+		else
+		{
+			return victim;
+		}
+	}
+	
+	NOT_REACHED();
+	return NULL;
 }
 
 /* 한 페이지를 교체하고 그에 해당하는 프레임을 반환합니다.
@@ -165,6 +187,13 @@ vm_evict_frame(void)
 {
 	struct frame *victim UNUSED = vm_get_victim();
 	/* TODO: victim을 swap 영역으로 내보내고, 그 프레임을 반환하세요. */
+
+	enum vm_type type = victim->page->operations->type;
+	if (VM_TYPE(type) == VM_FILE)
+	{
+		file_backed_destroy(&victim->page);
+	}
+
 
 	return NULL;
 }
@@ -445,3 +474,5 @@ bool cmp_page(const struct hash_elem *a, const struct hash_elem *b, void *aux)
 
 	return (uint64_t *)a_va < (uint64_t *)b_va ? true : false;
 }
+
+

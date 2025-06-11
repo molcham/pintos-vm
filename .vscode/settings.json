@@ -65,6 +65,10 @@
         "off_t.h": "c",
         "thread": "c",
         "file.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "page_cache.h": "c",
+        "stdio.h": "c",
+        "debug.h": "c",
+        "bitmap.h": "c"
     }
 }

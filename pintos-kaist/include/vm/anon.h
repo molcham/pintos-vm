@@ -4,6 +4,9 @@
 struct page;
 enum vm_type;
 
+// ///// 추가 /////
+// struct bitmap swap_table;
+
 struct anon_page {            
     size_t swap_idx;    
 };
